@@ -41,6 +41,9 @@ export function MessageBubble({ message, messageIndex, onSelectSuggestion }: Mes
             toolCall={toolCalls[0].function}
             isPinned={isPinned(pinKey(messageIndex, 0))}
             onSelectSuggestion={onSelectSuggestion}
+            message={message}
+            messageIndex={messageIndex}
+            toolCallIndex={0}
           />
         )}
 
@@ -59,6 +62,9 @@ export function MessageBubble({ message, messageIndex, onSelectSuggestion }: Mes
                   toolCall={tc.function}
                   isPinned={isPinned(pinKey(messageIndex, i))}
                   onSelectSuggestion={onSelectSuggestion}
+                  message={message}
+                  messageIndex={messageIndex}
+                  toolCallIndex={i}
                 />
               </TabsContent>
             ))}

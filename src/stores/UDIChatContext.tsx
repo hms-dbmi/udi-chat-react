@@ -4,12 +4,18 @@ import { createConversationStore, type ConversationState } from './conversationS
 import { createDashboardStore, type DashboardState } from './dashboardStore';
 import { createDataPackageStore, type DataPackageState } from './dataPackageStore';
 import { createSelectionsStore, type SelectionsState } from './selectionsStore';
+import { createDataFiltersStore, type DataFiltersState } from './dataFiltersStore';
+import { createMemoryBankStore, type MemoryBankState } from './memoryBankStore';
+import { createGlobalStore, type GlobalState } from './globalStore';
 
 interface UDIChatStores {
   conversation: StoreApi<ConversationState>;
   dashboard: StoreApi<DashboardState>;
   dataPackage: StoreApi<DataPackageState>;
   selections: StoreApi<SelectionsState>;
+  dataFilters: StoreApi<DataFiltersState>;
+  memoryBank: StoreApi<MemoryBankState>;
+  global: StoreApi<GlobalState>;
 }
 
 const UDIChatContext = createContext<UDIChatStores | null>(null);
@@ -22,6 +28,9 @@ export function UDIChatProvider({ children }: { children: ReactNode }) {
       dashboard: createDashboardStore(),
       dataPackage: createDataPackageStore(),
       selections: createSelectionsStore(),
+      dataFilters: createDataFiltersStore(),
+      memoryBank: createMemoryBankStore(),
+      global: createGlobalStore(),
     };
   }
   return (
@@ -67,4 +76,28 @@ export function useSelections<T>(selector: (state: SelectionsState) => T): T {
 
 export function useSelectionsStore(): StoreApi<SelectionsState> {
   return useStores().selections;
+}
+
+export function useDataFilters<T>(selector: (state: DataFiltersState) => T): T {
+  return useStore(useStores().dataFilters, selector);
+}
+
+export function useDataFiltersStore(): StoreApi<DataFiltersState> {
+  return useStores().dataFilters;
+}
+
+export function useMemoryBank<T>(selector: (state: MemoryBankState) => T): T {
+  return useStore(useStores().memoryBank, selector);
+}
+
+export function useMemoryBankStore(): StoreApi<MemoryBankState> {
+  return useStores().memoryBank;
+}
+
+export function useGlobal<T>(selector: (state: GlobalState) => T): T {
+  return useStore(useStores().global, selector);
+}
+
+export function useGlobalStore(): StoreApi<GlobalState> {
+  return useStores().global;
 }

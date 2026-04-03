@@ -39,3 +39,19 @@ export interface DataPackage {
   'udi:path': string;
   resources: DataPackageResource[];
 }
+
+export type Row = Record<string, unknown>;
+
+export type ExportRowSet = {
+  displayRows: Row[];
+  allRows: Row[];
+};
+
+export interface ValidStatus {
+  isValid: 'yes' | 'no' | 'unknown';
+}
+
+export interface EntityRelationship {
+  originKey: string;
+  targetKey: string;
+}

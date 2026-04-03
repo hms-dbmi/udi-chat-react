@@ -1,5 +1,12 @@
 import { createStore } from 'zustand/vanilla';
-import type { DataFieldDomain, DataPackage, CategoricalDomain } from '@/types/dataPackage';
+import type {
+  DataFieldDomain,
+  DataPackage,
+  CategoricalDomain,
+  ValidStatus,
+  EntityRelationship,
+  ExportRowSet,
+} from '@/types/dataPackage';
 
 export interface DataPackageState {
   dataPackage: DataPackage | null;
@@ -8,9 +15,18 @@ export interface DataPackageState {
   error: string | null;
   // Cached derived values (updated by fetchDataPackage, not recomputed per selector call)
   sourceFields: Record<string, string[]> | null;
+  quantitativeSourceFields: Record<string, string[]> | null;
+  categoricalSourceFields: Record<string, string[]> | null;
+  entityNames: string[];
   dataPackageString: string;
   dataDomainsString: string;
+  filteredData: Map<string, ExportRowSet>;
   fetchDataPackage: (path: string) => Promise<void>;
+  getDomainForField: (entity: string, field: string) => DataFieldDomain | undefined;
+  isValidIntervalFilter: (entity: string, field: string) => ValidStatus;
+  isValidPointFilter: (entity: string, field: string, values: unknown[]) => ValidStatus;
+  getEntityRelationship: (originSource: string, targetSource: string) => EntityRelationship | null;
+  setFilteredData: (entity: string, data: ExportRowSet) => void;
 }
 
 function removeVestigialInfo(data: any): any {
@@ -42,6 +58,35 @@ function computeSourceFields(dp: DataPackage | null): Record<string, string[]> |
   return fieldsMap;
 }
 
+function computeQuantitativeSourceFields(dp: DataPackage | null): Record<string, string[]> | null {
+  if (!dp?.resources) return null;
+  const fieldsMap: Record<string, string[]> = {};
+  for (const resource of dp.resources) {
+    if (!resource.name || !resource.schema?.fields) continue;
+    fieldsMap[resource.name] = resource.schema.fields
+      .filter((f) => f['udi:data_type'] === 'quantitative')
+      .map((f) => f.name);
+  }
+  return fieldsMap;
+}
+
+function computeCategoricalSourceFields(dp: DataPackage | null): Record<string, string[]> | null {
+  if (!dp?.resources) return null;
+  const fieldsMap: Record<string, string[]> = {};
+  for (const resource of dp.resources) {
+    if (!resource.name || !resource.schema?.fields) continue;
+    fieldsMap[resource.name] = resource.schema.fields
+      .filter((f) => f['udi:data_type'] === 'ordinal' || f['udi:data_type'] === 'nominal')
+      .map((f) => f.name);
+  }
+  return fieldsMap;
+}
+
+function computeEntityNames(dp: DataPackage | null): string[] {
+  if (!dp?.resources) return [];
+  return dp.resources.map((r) => r.name);
+}
+
 function computeDataPackageString(dp: DataPackage | null): string {
   if (!dp) return '';
   return JSON.stringify(removeVestigialInfo(dp));
@@ -53,14 +98,77 @@ function computeDataDomainsString(domains: DataFieldDomain[]): string {
 }
 
 export function createDataPackageStore() {
-  return createStore<DataPackageState>()((set) => ({
+  return createStore<DataPackageState>()((set, get) => ({
     dataPackage: null,
     dataFieldDomains: [],
     loading: false,
     error: null,
     sourceFields: null,
+    quantitativeSourceFields: null,
+    categoricalSourceFields: null,
+    entityNames: [],
     dataPackageString: '',
     dataDomainsString: '',
+    filteredData: new Map(),
+
+    getDomainForField: (entity: string, field: string) => {
+      return get().dataFieldDomains.find((d) => d.entity === entity && d.field === field);
+    },
+
+    isValidIntervalFilter: (entity: string, field: string): ValidStatus => {
+      const state = get();
+      if (!state.dataPackage?.resources) return { isValid: 'unknown' };
+      const domain = state.getDomainForField(entity, field);
+      if (!domain) return { isValid: 'no' };
+      return { isValid: 'yes' };
+    },
+
+    isValidPointFilter: (entity: string, field: string, values: unknown[]): ValidStatus => {
+      const state = get();
+      if (!state.dataPackage?.resources) return { isValid: 'unknown' };
+      const domain = state.getDomainForField(entity, field);
+      if (!domain) return { isValid: 'no' };
+      const validValues = (domain.domain as CategoricalDomain).values;
+      if (!validValues) return { isValid: 'no' };
+      const isValid = values.every((v) => validValues.includes(v as string));
+      return { isValid: isValid ? 'yes' : 'no' };
+    },
+
+    getEntityRelationship: (
+      originSource: string,
+      targetSource: string,
+    ): EntityRelationship | null => {
+      const dp = get().dataPackage;
+      if (!dp?.resources) return null;
+
+      const searchOneDirection = (source: string, target: string, reverse = false) => {
+        for (const resource of dp.resources) {
+          if (resource.name !== source) continue;
+          const fks = resource.schema?.foreignKeys ?? [];
+          for (const fk of fks) {
+            if (fk.reference.resource === target) {
+              const key1 = fk.fields[fk.fields.length - 1];
+              const key2 = fk.reference.fields[fk.reference.fields.length - 1];
+              if (reverse) return { originKey: key2, targetKey: key1 };
+              return { originKey: key1, targetKey: key2 };
+            }
+          }
+        }
+        return null;
+      };
+      return (
+        searchOneDirection(originSource, targetSource) ??
+        searchOneDirection(targetSource, originSource, true)
+      );
+    },
+
+    setFilteredData: (entity: string, data: ExportRowSet) => {
+      set((state) => {
+        const next = new Map(state.filteredData);
+        next.set(entity, data);
+        return { filteredData: next };
+      });
+    },
 
     fetchDataPackage: async (path: string) => {
       set({ loading: true, error: null });
@@ -76,6 +184,9 @@ export function createDataPackageStore() {
           dataPackage: json,
           loading: false,
           sourceFields: computeSourceFields(json),
+          quantitativeSourceFields: computeQuantitativeSourceFields(json),
+          categoricalSourceFields: computeCategoricalSourceFields(json),
+          entityNames: computeEntityNames(json),
           dataPackageString: computeDataPackageString(json),
         });
 

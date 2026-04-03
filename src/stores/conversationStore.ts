@@ -6,6 +6,8 @@ export interface ConversationState {
   addMessage: (message: Message) => void;
   newConversation: () => void;
   getMessagesFormattedForLLM: () => Message[];
+  loadConversation: (messages: Message[]) => void;
+  exportConversation: () => string;
 }
 
 export function createConversationStore() {
@@ -16,6 +18,10 @@ export function createConversationStore() {
       set((state) => ({ messages: [...state.messages, message] })),
 
     newConversation: () => set({ messages: [] }),
+
+    loadConversation: (messages) => set({ messages }),
+
+    exportConversation: () => JSON.stringify(get().messages, null, 2),
 
     getMessagesFormattedForLLM: () => {
       return get().messages.map((message) => {

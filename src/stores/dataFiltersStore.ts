@@ -1,0 +1,274 @@
+import { createStore } from 'zustand/vanilla';
+import type { Message, ToolCall } from '@/types/messages';
+import type { FilterDataArgs } from '@/types/toolCallArgs';
+
+// Matches udi-toolkit's DataSelection / DataSelections shape
+export interface DataSelection {
+  dataSourceKey: string;
+  type: 'interval' | 'point';
+  selection: Record<string, unknown[]>;
+}
+
+export type DataSelections = Record<string, DataSelection>;
+
+export interface ExtractedFilter {
+  args: FilterDataArgs;
+  toolCallIndex: number;
+}
+
+interface ValidateFilterFn {
+  isValidIntervalFilter: (entity: string, field: string) => { isValid: string };
+  isValidPointFilter: (entity: string, field: string, values: unknown[]) => { isValid: string };
+}
+
+export interface DataFiltersState {
+  dataSelections: DataSelections;
+  internalDataSelections: DataSelections;
+
+  getValidDataSelections: (validate: ValidateFilterFn) => DataSelections;
+  syncFiltersFromMessages: (messages: Message[], validate: ValidateFilterFn) => void;
+  syncSelectionsBackToMessages: (messages: Message[]) => void;
+  updateInternalDataSelections: (newFilters: DataSelections) => void;
+  clearFilter: (key: string) => void;
+  resetFilters: () => void;
+  setDataSelection: (key: string, selection: DataSelection) => void;
+}
+
+// --- Pure helper functions ---
+
+function getToolCallName(toolCall: ToolCall): string {
+  if (toolCall.function) return toolCall.function.name;
+  return toolCall.name ?? '';
+}
+
+function getToolCallArgs(toolCall: ToolCall): Record<string, any> | undefined {
+  if (toolCall.function) return toolCall.function.arguments;
+  return toolCall.arguments;
+}
+
+export function messageFilterKeyWithToolCall(
+  messageIndex: number,
+  toolCallIndex: number,
+  message?: Message,
+): string {
+  return message?.linkedVisFilterId ?? `message-filter-${messageIndex}-${toolCallIndex}`;
+}
+
+export function messageFilterKey(messageIndex: number, message?: Message): string {
+  return messageFilterKeyWithToolCall(messageIndex, 0, message);
+}
+
+function messageIndexFromKey(filterKey: string): number | null {
+  const match = filterKey.match(/message-filter-(\d+)/);
+  return match ? parseInt(match[1]) : null;
+}
+
+export function containsFilterCall(message: Message): boolean {
+  return (
+    message.tool_calls?.some((call) => getToolCallName(call) === 'FilterData') ?? false
+  );
+}
+
+export function extractAllFilterSpecsFromMessage(message: Message): ExtractedFilter[] {
+  if (!message.tool_calls?.length) return [];
+  const results: ExtractedFilter[] = [];
+  for (let i = 0; i < message.tool_calls.length; i++) {
+    const call = message.tool_calls[i];
+    if (getToolCallName(call) !== 'FilterData') continue;
+    const args = getToolCallArgs(call);
+    if (!args) continue;
+    results.push({ args: args as unknown as FilterDataArgs, toolCallIndex: i });
+  }
+  return results;
+}
+
+export function extractFilterSpecFromMessage(message: Message): FilterDataArgs | null {
+  const filters = extractAllFilterSpecsFromMessage(message);
+  return filters.length > 0 ? filters[0].args : null;
+}
+
+export function generateFilterMessage(key: string, selection: DataSelection): Message | null {
+  if (!selection.selection || Object.keys(selection.selection).length === 0) return null;
+  const fields = Object.keys(selection.selection);
+  const tool_calls = fields.map((field) => {
+    const range = selection.selection[field];
+    return {
+      function: {
+        name: 'FilterData',
+        arguments: {
+          entity: selection.dataSourceKey,
+          field,
+          filter: {
+            filterType: selection.type,
+            intervalRange: { min: range[0], max: range[1] },
+            pointValues: range,
+          },
+        },
+      },
+    };
+  });
+  return {
+    role: 'user' as const,
+    content: '',
+    linkedVisFilterId: key,
+    tool_calls: tool_calls as any,
+  };
+}
+
+// --- Store ---
+
+export function createDataFiltersStore() {
+  return createStore<DataFiltersState>()((set, get) => ({
+    dataSelections: {},
+    internalDataSelections: {},
+
+    getValidDataSelections: (validate: ValidateFilterFn): DataSelections => {
+      const { dataSelections } = get();
+      const valid: DataSelections = {};
+      for (const [key, selection] of Object.entries(dataSelections)) {
+        if (!selection.selection || Object.keys(selection.selection).length === 0) continue;
+        if (Object.values(selection.selection).every((v) => Array.isArray(v) && v.length === 0))
+          continue;
+        if (!key.startsWith('message-filter-')) continue;
+
+        if (selection.type === 'interval') {
+          if (
+            validate.isValidIntervalFilter(
+              selection.dataSourceKey,
+              Object.keys(selection.selection)[0],
+            ).isValid === 'yes'
+          ) {
+            valid[key] = selection;
+          }
+        } else if (selection.type === 'point') {
+          if (
+            validate.isValidPointFilter(
+              selection.dataSourceKey,
+              Object.keys(selection.selection)[0],
+              Object.values(selection.selection)[0],
+            ).isValid === 'yes'
+          ) {
+            valid[key] = selection;
+          }
+        }
+      }
+      return valid;
+    },
+
+    syncFiltersFromMessages: (messages: Message[], validate: ValidateFilterFn) => {
+      const current = get().dataSelections;
+      let changed = false;
+      const next = { ...current };
+
+      for (let i = 0; i < messages.length; i++) {
+        const message = messages[i];
+        if (!message || !containsFilterCall(message)) continue;
+        const filters = extractAllFilterSpecsFromMessage(message);
+        for (const { args: filterSpec, toolCallIndex } of filters) {
+          const key = messageFilterKeyWithToolCall(i, toolCallIndex, message);
+          if (key in next) continue;
+
+          if (filterSpec.filter.filterType === 'interval') {
+            if (
+              validate.isValidIntervalFilter(filterSpec.entity, filterSpec.field).isValid !== 'yes'
+            )
+              continue;
+            next[key] = {
+              dataSourceKey: filterSpec.entity,
+              type: 'interval',
+              selection: {
+                [filterSpec.field]: [
+                  filterSpec.filter.intervalRange.min,
+                  filterSpec.filter.intervalRange.max,
+                ],
+              },
+            };
+            changed = true;
+          } else {
+            if (
+              validate.isValidPointFilter(
+                filterSpec.entity,
+                filterSpec.field,
+                filterSpec.filter.pointValues,
+              ).isValid !== 'yes'
+            )
+              continue;
+            next[key] = {
+              dataSourceKey: filterSpec.entity,
+              type: 'point',
+              selection: { [filterSpec.field]: filterSpec.filter.pointValues },
+            };
+            changed = true;
+          }
+        }
+      }
+      if (changed) set({ dataSelections: next });
+    },
+
+    syncSelectionsBackToMessages: (messages: Message[]) => {
+      const { dataSelections } = get();
+      for (const [selectionKey, selection] of Object.entries(dataSelections)) {
+        const idx = messageIndexFromKey(selectionKey);
+        if (idx === null) continue;
+        const message = messages[idx];
+        if (!message?.tool_calls) continue;
+        for (const toolCall of message.tool_calls) {
+          if (getToolCallName(toolCall) !== 'FilterData') continue;
+          const args = getToolCallArgs(toolCall);
+          if (!args || args.entity !== selection.dataSourceKey) continue;
+          if (selection.type !== 'interval') continue;
+          for (const [selectionField, intervalSelection] of Object.entries(
+            selection.selection ?? {},
+          )) {
+            if (args.field !== selectionField) continue;
+            args.filter.intervalRange.min = intervalSelection[0];
+            args.filter.intervalRange.max = intervalSelection[1];
+          }
+        }
+      }
+    },
+
+    updateInternalDataSelections: (newFilters: DataSelections) => {
+      const current = get().internalDataSelections;
+      const next = { ...current };
+      let changed = false;
+      for (const [key, newFilter] of Object.entries(newFilters)) {
+        if (key.startsWith('message-filter-')) continue;
+        if (JSON.stringify(next[key]) !== JSON.stringify(newFilter)) {
+          next[key] = newFilter;
+          changed = true;
+        }
+      }
+      if (changed) set({ internalDataSelections: next });
+    },
+
+    clearFilter: (key: string) => {
+      const { dataSelections, internalDataSelections } = get();
+
+      const clearValues = (sel: DataSelection | undefined): DataSelection | undefined => {
+        if (!sel?.selection) return sel;
+        const cleared = { ...sel, selection: { ...sel.selection } };
+        for (const field of Object.keys(cleared.selection)) {
+          cleared.selection[field] = [];
+        }
+        return cleared;
+      };
+
+      const nextData = { ...dataSelections };
+      const nextInternal = { ...internalDataSelections };
+      if (nextData[key]) nextData[key] = clearValues(nextData[key])!;
+      if (nextInternal[key]) nextInternal[key] = clearValues(nextInternal[key])!;
+      set({ dataSelections: nextData, internalDataSelections: nextInternal });
+    },
+
+    resetFilters: () => {
+      set({ dataSelections: {}, internalDataSelections: {} });
+    },
+
+    setDataSelection: (key: string, selection: DataSelection) => {
+      set((state) => ({
+        dataSelections: { ...state.dataSelections, [key]: selection },
+      }));
+    },
+  }));
+}

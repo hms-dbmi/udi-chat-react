@@ -1,6 +1,10 @@
-import { createStore } from 'zustand/vanilla';
+import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { UDIGrammar } from 'udi-toolkit/react';
 import type { Message } from '@/types/messages';
+import type { DataFiltersState } from './dataFiltersStore';
+import type { DataPackageState } from './dataPackageStore';
+import type { MemoryBankState } from './memoryBankStore';
+import type { EntityRelationship } from '@/types/dataPackage';
 
 export interface PinnedVisualization {
   index: number;
@@ -20,6 +24,9 @@ export interface ExtractedSpec {
 
 export interface DashboardState {
   pinnedVisualizations: Map<string, PinnedVisualization>;
+  filterAllNullValues: boolean;
+  expandedVisualizations: Set<string>;
+  hoveredVisualizationIndex: string | null;
   pinKey: (messageIndex: number, toolCallIndex: number) => string;
   pinVisualization: (
     index: number,
@@ -29,9 +36,31 @@ export interface DashboardState {
     sourceFields: Record<string, string[]> | null,
     title?: string,
   ) => void;
-  unpinVisualization: (key: string) => void;
+  unpinVisualization: (key: string, memoryBankStore?: StoreApi<MemoryBankState>) => void;
+  restoreFromMemoryBank: (key: string, memoryBankStore: StoreApi<MemoryBankState>) => void;
   isPinned: (key: string) => boolean;
   clearAllVisualizations: () => void;
+  setFilterAllNullValues: (value: boolean) => void;
+  toggleExpanded: (key: string) => void;
+  isExpanded: (key: string) => boolean;
+  setHoveredVisualizationIndex: (key: string | null) => void;
+  isHovered: (key: string) => boolean;
+  updateSpecFilters: (
+    dataFiltersStore: StoreApi<DataFiltersState>,
+    dataPackageStore: StoreApi<DataPackageState>,
+  ) => void;
+  getNamedFilters: (
+    filterIdList: string[],
+    currentSourceName: string,
+    dataFiltersStore: StoreApi<DataFiltersState>,
+    dataPackageStore: StoreApi<DataPackageState>,
+  ) => object[];
+  getFilterIds: (dataFiltersStore: StoreApi<DataFiltersState>) => string[];
+  updatePinnedVisualizationSpec: (
+    key: string,
+    newSpec: UDIGrammar,
+    sourceFields: Record<string, string[]> | null,
+  ) => void;
 }
 
 let counter = 0;
@@ -113,9 +142,31 @@ export function injectInteractivity(
   return interactiveSpec;
 }
 
+function getRepresentedFields(spec: UDIGrammar): string[] {
+  if (!spec.representation) return [];
+  const fields = new Set<string>();
+  const representations = Array.isArray(spec.representation)
+    ? spec.representation
+    : [spec.representation];
+  for (const representation of representations) {
+    const mappings = Array.isArray((representation as any).mapping)
+      ? (representation as any).mapping
+      : [(representation as any).mapping];
+    for (const mapping of mappings) {
+      if (mapping && 'field' in mapping) {
+        fields.add(mapping.field);
+      }
+    }
+  }
+  return Array.from(fields);
+}
+
 export function createDashboardStore() {
   return createStore<DashboardState>()((set, get) => ({
     pinnedVisualizations: new Map(),
+    filterAllNullValues: true,
+    expandedVisualizations: new Set(),
+    hoveredVisualizationIndex: null,
 
     pinKey: (messageIndex, toolCallIndex) => `${messageIndex}-${toolCallIndex}`,
 
@@ -130,17 +181,164 @@ export function createDashboardStore() {
       });
     },
 
-    unpinVisualization: (key) => {
+    unpinVisualization: (key, memoryBankStore) => {
+      const viz = get().pinnedVisualizations.get(key);
+      if (viz && memoryBankStore) {
+        memoryBankStore.getState().addToMemoryBank(key, viz);
+      }
       set((state) => {
         const next = new Map(state.pinnedVisualizations);
         next.delete(key);
+        const nextExpanded = new Set(state.expandedVisualizations);
+        nextExpanded.delete(key);
+        return { pinnedVisualizations: next, expandedVisualizations: nextExpanded };
+      });
+    },
+
+    restoreFromMemoryBank: (key, memoryBankStore) => {
+      const viz = memoryBankStore.getState().closedVisualizations.get(key);
+      if (!viz) return;
+      set((state) => {
+        const next = new Map(state.pinnedVisualizations);
+        next.set(key, viz);
         return { pinnedVisualizations: next };
       });
+      memoryBankStore.getState().removeFromMemoryBank(key);
     },
 
     isPinned: (key) => get().pinnedVisualizations.has(key),
 
-    clearAllVisualizations: () => set({ pinnedVisualizations: new Map() }),
+    clearAllVisualizations: () =>
+      set({ pinnedVisualizations: new Map(), expandedVisualizations: new Set() }),
+
+    setFilterAllNullValues: (value) => set({ filterAllNullValues: value }),
+
+    toggleExpanded: (key) => {
+      set((state) => {
+        const next = new Set(state.expandedVisualizations);
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+        return { expandedVisualizations: next };
+      });
+    },
+
+    isExpanded: (key) => get().expandedVisualizations.has(key),
+
+    setHoveredVisualizationIndex: (key) => set({ hoveredVisualizationIndex: key }),
+
+    isHovered: (key) => get().hoveredVisualizationIndex === key,
+
+    getFilterIds: (dataFiltersStore) => {
+      const vizFilterIDs = Array.from(get().pinnedVisualizations.values()).map((v) => v.uuid);
+      const validSelections = dataFiltersStore.getState().getValidDataSelections({
+        isValidIntervalFilter: () => ({ isValid: 'yes' }),
+        isValidPointFilter: () => ({ isValid: 'yes' }),
+      });
+      const externalIds = Object.keys(validSelections);
+      const ids = Array.from(new Set([...vizFilterIDs, ...externalIds]));
+      ids.sort();
+      return ids;
+    },
+
+    getNamedFilters: (filterIdList, currentSourceName, dataFiltersStore, dataPackageStore) => {
+      const state = get();
+      const uuidToSource = new Map<string, string>();
+      for (const v of state.pinnedVisualizations.values()) {
+        const sourceName = Array.isArray(v.interactiveSpec.source)
+          ? (v.interactiveSpec.source as any)[0]?.name
+          : (v.interactiveSpec.source as any)?.name;
+        if (v.uuid && sourceName) uuidToSource.set(v.uuid, sourceName);
+      }
+
+      const dpState = dataPackageStore.getState();
+      const dfState = dataFiltersStore.getState();
+      const validSelections = dfState.getValidDataSelections({
+        isValidIntervalFilter: dpState.isValidIntervalFilter,
+        isValidPointFilter: dpState.isValidPointFilter,
+      });
+
+      const getSourceName = (id: string) => {
+        return uuidToSource.get(id) ?? validSelections[id]?.dataSourceKey ?? null;
+      };
+
+      return filterIdList
+        .map((id: string): object | null => {
+          const originSourceName = getSourceName(id);
+          if (!originSourceName) return null;
+          if (originSourceName !== currentSourceName) {
+            const er: EntityRelationship | null = dpState.getEntityRelationship(
+              originSourceName,
+              currentSourceName,
+            );
+            if (!er) return null;
+            return {
+              filter: {
+                name: id,
+                source: originSourceName,
+                entityRelationship: er,
+              },
+            };
+          }
+          return { filter: { name: id } };
+        })
+        .filter((f): f is object => f !== null);
+    },
+
+    updateSpecFilters: (dataFiltersStore, dataPackageStore) => {
+      const state = get();
+      const dpState = dataPackageStore.getState();
+      const filterIdList = (() => {
+        const vizFilterIDs = Array.from(state.pinnedVisualizations.values()).map((v) => v.uuid);
+        const validSelections = dataFiltersStore.getState().getValidDataSelections({
+          isValidIntervalFilter: dpState.isValidIntervalFilter,
+          isValidPointFilter: dpState.isValidPointFilter,
+        });
+        const externalIds = Object.keys(validSelections);
+        return Array.from(new Set([...vizFilterIDs, ...externalIds])).sort();
+      })();
+
+      let changed = false;
+      const next = new Map(state.pinnedVisualizations);
+
+      for (const [key, viz] of next) {
+        const currentSourceName = Array.isArray(viz.interactiveSpec.source)
+          ? (viz.interactiveSpec.source as any)[0]?.name
+          : (viz.interactiveSpec.source as any)?.name;
+
+        const newFilters = state.getNamedFilters(
+          filterIdList,
+          currentSourceName ?? 'unknown_source',
+          dataFiltersStore,
+          dataPackageStore,
+        );
+        const baseTrans = structuredClone(viz.spec.transformation ?? []) as object[];
+        const nullFilters = state.filterAllNullValues
+          ? getRepresentedFields(viz.spec).map((field) => ({ filter: `d['${field}'] != null` }))
+          : [];
+
+        const newTransformation = [...newFilters, ...baseTrans, ...nullFilters];
+
+        if (JSON.stringify(viz.interactiveSpec.transformation) !== JSON.stringify(newTransformation)) {
+          const updatedSpec = structuredClone(viz.interactiveSpec);
+          (updatedSpec as any).transformation = newTransformation;
+          next.set(key, { ...viz, interactiveSpec: updatedSpec });
+          changed = true;
+        }
+      }
+
+      if (changed) set({ pinnedVisualizations: next });
+    },
+
+    updatePinnedVisualizationSpec: (key, newSpec, sourceFields) => {
+      const viz = get().pinnedVisualizations.get(key);
+      if (!viz) return;
+      const interactiveSpec = injectInteractivity(newSpec, viz.uuid, sourceFields);
+      set((state) => {
+        const next = new Map(state.pinnedVisualizations);
+        next.set(key, { ...viz, spec: newSpec, interactiveSpec });
+        return { pinnedVisualizations: next };
+      });
+    },
   }));
 }
 

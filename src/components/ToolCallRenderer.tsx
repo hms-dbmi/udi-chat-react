@@ -1,8 +1,10 @@
-import type { FlatToolCall } from '@/types/messages';
-import type { FreeTextExplainArgs, RebuffArgs } from '@/types/toolCallArgs';
+import type { FlatToolCall, Message } from '@/types/messages';
+import type { FreeTextExplainArgs, RebuffArgs, ClarifyVariableArgs } from '@/types/toolCallArgs';
 import { FreeTextExplain } from '@/components/tool-calls/FreeTextExplain';
 import { RebuffNotice } from '@/components/tool-calls/RebuffNotice';
 import { VisualizationCard } from '@/components/tool-calls/VisualizationCard';
+import { FilterComponent } from '@/components/tool-calls/FilterComponent';
+import { ClarifyVariable } from '@/components/tool-calls/ClarifyVariable';
 import type { UDIGrammar } from 'udi-toolkit/react';
 import { Badge } from '@/components/ui/badge';
 
@@ -10,9 +12,12 @@ interface ToolCallRendererProps {
   toolCall: FlatToolCall;
   isPinned?: boolean;
   onSelectSuggestion?: (suggestion: string) => void;
+  message?: Message;
+  messageIndex?: number;
+  toolCallIndex?: number;
 }
 
-export function ToolCallRenderer({ toolCall, isPinned, onSelectSuggestion }: ToolCallRendererProps) {
+export function ToolCallRenderer({ toolCall, isPinned, onSelectSuggestion, message, messageIndex, toolCallIndex }: ToolCallRendererProps) {
   const args = toolCall.arguments;
 
   switch (toolCall.name) {
@@ -35,6 +40,22 @@ export function ToolCallRenderer({ toolCall, isPinned, onSelectSuggestion }: Too
     case 'Rebuff': {
       const rebuffArgs = args as unknown as RebuffArgs;
       return <RebuffNotice {...rebuffArgs} onSelectSuggestion={onSelectSuggestion} />;
+    }
+    case 'FilterData': {
+      if (message && messageIndex != null) {
+        return (
+          <FilterComponent
+            message={message}
+            messageIndex={messageIndex}
+            toolCallIndex={toolCallIndex}
+          />
+        );
+      }
+      return <Badge variant="secondary">Filter</Badge>;
+    }
+    case 'ClarifyVariable': {
+      const clarifyArgs = args as unknown as ClarifyVariableArgs;
+      return <ClarifyVariable {...clarifyArgs} onSelectSuggestion={onSelectSuggestion} />;
     }
     default:
       return (

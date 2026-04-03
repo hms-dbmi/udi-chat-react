@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { UDIChatProvider, useConversation, useDataPackageStore, useDashboardStore, useDataPackage } from '@/stores/UDIChatContext';
+import { UDIChatProvider, useConversation, useDataPackageStore, useDashboardStore, useDataPackage, useDataFiltersStore, useDataFilters, useMemoryBankStore } from '@/stores/UDIChatContext';
 import { extractAllUdiSpecsFromMessage } from '@/stores/dashboardStore';
 import type { UDIGrammar } from 'udi-toolkit/react';
 import { ChatPanel } from './ChatPanel';
@@ -23,6 +23,8 @@ export interface UDIChatConfig {
 function UDIChatInner({ apiBaseUrl, dataPackagePath, authToken, model, requireApiKey }: UDIChatConfig) {
   const dataPackageStore = useDataPackageStore();
   const dashboardStore = useDashboardStore();
+  const dataFiltersStore = useDataFiltersStore();
+  const memoryBankStore = useMemoryBankStore();
   const messages = useConversation((s) => s.messages);
   const sourceFields = useDataPackage((s) => s.sourceFields);
   const [openAiKey, setOpenAiKey] = useState<string | null>(null);
@@ -42,6 +44,7 @@ function UDIChatInner({ apiBaseUrl, dataPackagePath, authToken, model, requireAp
       for (const { spec, toolCallIndex, title } of specs) {
         const key = state.pinKey(i, toolCallIndex);
         if (state.pinnedVisualizations.has(key)) continue;
+        if (memoryBankStore.getState().closedVisualizations.has(key)) continue;
         let userPromptIndex = i - 1;
         while (userPromptIndex >= 0 && messages[userPromptIndex]?.role !== 'user') {
           userPromptIndex--;
@@ -50,7 +53,24 @@ function UDIChatInner({ apiBaseUrl, dataPackagePath, authToken, model, requireAp
         state.pinVisualization(i, toolCallIndex, spec as UDIGrammar, userPrompt, sourceFields, title);
       }
     }
-  }, [messages, dashboardStore, sourceFields]);
+  }, [messages, dashboardStore, sourceFields, memoryBankStore]);
+
+  // Sync data filters from messages (replaces Vue's watch(messages, ...) in dataFiltersStore)
+  useEffect(() => {
+    const dpState = dataPackageStore.getState();
+    const validate = {
+      isValidIntervalFilter: dpState.isValidIntervalFilter,
+      isValidPointFilter: dpState.isValidPointFilter,
+    };
+    dataFiltersStore.getState().syncFiltersFromMessages(messages, validate);
+  }, [messages, dataFiltersStore, dataPackageStore]);
+
+  // Update spec filters when data selections change
+  const dataSelections = useDataFilters((s) => s.dataSelections);
+  const internalDataSelections = useDataFilters((s) => s.internalDataSelections);
+  useEffect(() => {
+    dashboardStore.getState().updateSpecFilters(dataFiltersStore, dataPackageStore);
+  }, [dataSelections, internalDataSelections, dashboardStore, dataFiltersStore, dataPackageStore]);
 
   const handleSetApiKey = useCallback((key: string) => {
     setOpenAiKey(key);
