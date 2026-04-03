@@ -35,6 +35,16 @@ export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
     [viz.interactiveSpec],
   );
 
+  // Fingerprint the spec so we can force UDIVis to remount when the spec
+  // content changes — the Vue CE may not reliably re-render on prop updates
+  // alone despite the useLayoutEffect fix in the wrapper.
+  const specKey = useMemo(() => {
+    const s = viz.interactiveSpec;
+    const repr = JSON.stringify((s as any).representation);
+    const src = JSON.stringify(s.source);
+    return `${src}|${repr}`;
+  }, [viz.interactiveSpec]);
+
   const externalSelections = useMemo(() => {
     const filtered: DataSelections = {};
     for (const [key, val] of Object.entries(selections)) {
@@ -152,6 +162,7 @@ export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
       )}
       <CardContent className="p-2">
         <UDIVis
+          key={specKey}
           spec={plainSpec}
           selections={externalSelections}
           onSelectionChange={handleSelectionChange}

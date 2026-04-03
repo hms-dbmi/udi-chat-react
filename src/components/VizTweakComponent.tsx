@@ -6,7 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useDataPackage, useDashboardStore } from '@/stores/UDIChatContext';
+import { useDataPackage, useDashboardStore, useDataFiltersStore, useDataPackageStore } from '@/stores/UDIChatContext';
 import type { UDIGrammar } from 'udi-toolkit/react';
 
 interface TweakableParam {
@@ -26,6 +26,8 @@ export function VizTweakComponent({ spec, messageIndex, toolCallIndex }: VizTwea
   const quantitativeSourceFields = useDataPackage((s) => s.quantitativeSourceFields);
   const categoricalSourceFields = useDataPackage((s) => s.categoricalSourceFields);
   const dashboardStore = useDashboardStore();
+  const dataFiltersStore = useDataFiltersStore();
+  const dataPackageStore = useDataPackageStore();
 
   const sourceName = useMemo(() => {
     const src = Array.isArray(spec.source) ? (spec.source as any)[0] : spec.source;
@@ -77,8 +79,10 @@ export function VizTweakComponent({ spec, messageIndex, toolCallIndex }: VizTwea
 
       const pinKey = dashboardStore.getState().pinKey(messageIndex, toolCallIndex);
       dashboardStore.getState().updatePinnedVisualizationSpec(pinKey, updatedSpec, sourceFields);
+      // Reapply filter transformations to the updated spec (null filters, named filters)
+      dashboardStore.getState().updateSpecFilters(dataFiltersStore, dataPackageStore);
     },
-    [spec, dashboardStore, messageIndex, toolCallIndex, sourceFields],
+    [spec, dashboardStore, dataFiltersStore, dataPackageStore, messageIndex, toolCallIndex, sourceFields],
   );
 
   if (tweakableParams.length === 0) return null;

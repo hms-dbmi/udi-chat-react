@@ -31,7 +31,15 @@ export function ToolCallRenderer({ toolCall, isPinned, onSelectSuggestion, messa
         }
       }
       if (!spec) return <Badge variant="secondary">Visualization (invalid spec)</Badge>;
-      return <VisualizationCard spec={spec} isPinned={isPinned ?? false} title={args.title} />;
+      return (
+        <VisualizationCard
+          spec={spec}
+          isPinned={isPinned ?? false}
+          title={args.title}
+          messageIndex={messageIndex}
+          toolCallIndex={toolCallIndex}
+        />
+      );
     }
     case 'FreeTextExplain': {
       const ftArgs = args as unknown as FreeTextExplainArgs;
