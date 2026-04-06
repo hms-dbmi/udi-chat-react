@@ -26,6 +26,7 @@ export interface DashboardState {
   pinnedVisualizations: Map<string, PinnedVisualization>;
   filterAllNullValues: boolean;
   expandedVisualizations: Set<string>;
+  tableViewKeys: Set<string>;
   hoveredVisualizationIndex: string | null;
   pinKey: (messageIndex: number, toolCallIndex: number) => string;
   pinVisualization: (
@@ -43,6 +44,8 @@ export interface DashboardState {
   setFilterAllNullValues: (value: boolean) => void;
   toggleExpanded: (key: string) => void;
   isExpanded: (key: string) => boolean;
+  toggleTableView: (key: string) => void;
+  isTableView: (key: string) => boolean;
   setHoveredVisualizationIndex: (key: string | null) => void;
   isHovered: (key: string) => boolean;
   updateSpecFilters: (
@@ -166,6 +169,7 @@ export function createDashboardStore() {
     pinnedVisualizations: new Map(),
     filterAllNullValues: true,
     expandedVisualizations: new Set(),
+    tableViewKeys: new Set(),
     hoveredVisualizationIndex: null,
 
     pinKey: (messageIndex, toolCallIndex) => `${messageIndex}-${toolCallIndex}`,
@@ -209,7 +213,7 @@ export function createDashboardStore() {
     isPinned: (key) => get().pinnedVisualizations.has(key),
 
     clearAllVisualizations: () =>
-      set({ pinnedVisualizations: new Map(), expandedVisualizations: new Set() }),
+      set({ pinnedVisualizations: new Map(), expandedVisualizations: new Set(), tableViewKeys: new Set() }),
 
     setFilterAllNullValues: (value) => set({ filterAllNullValues: value }),
 
@@ -223,6 +227,17 @@ export function createDashboardStore() {
     },
 
     isExpanded: (key) => get().expandedVisualizations.has(key),
+
+    toggleTableView: (key) => {
+      set((state) => {
+        const next = new Set(state.tableViewKeys);
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+        return { tableViewKeys: next };
+      });
+    },
+
+    isTableView: (key) => get().tableViewKeys.has(key),
 
     setHoveredVisualizationIndex: (key) => set({ hoveredVisualizationIndex: key }),
 

@@ -3,7 +3,8 @@ import { UDIVis } from 'udi-toolkit/react';
 import type { DataSelections } from 'udi-toolkit/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { X, Settings2, Maximize2, Minimize2, Code2, Copy, Check } from 'lucide-react';
+import { X, Settings2, Maximize2, Minimize2, Code2, Copy, Check, Table2, BarChart3, ExternalLink } from 'lucide-react';
+import { compressToEncodedURIComponent } from 'lz-string';
 import {
   Dialog,
   DialogContent,
@@ -28,6 +29,7 @@ export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
   const dataFiltersStore = useDataFiltersStore();
   const memoryBankStore = useMemoryBankStore();
   const isExpanded = useDashboard((s) => s.isExpanded(vizKey));
+  const isTableView = useDashboard((s) => s.isTableView(vizKey));
   const isHovered = useDashboard((s) => s.hoveredVisualizationIndex === vizKey);
 
   const plainSpec = useMemo(
@@ -75,7 +77,20 @@ export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
   const [showTweak, setShowTweak] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  // For table view: strip representation so UDIVis renders as a table
+  const tableSpec = useMemo(() => {
+    if (!isTableView) return plainSpec;
+    const s = JSON.parse(JSON.stringify(plainSpec));
+    delete s.representation;
+    return s;
+  }, [plainSpec, isTableView]);
+
   const specJson = useMemo(() => JSON.stringify(viz.spec, null, 2), [viz.spec]);
+
+  const specEditorUrl = useMemo(() => {
+    const compressed = compressToEncodedURIComponent(specJson);
+    return `https://hms-dbmi.github.io/udi-grammar/#/Editor?spec=${compressed}`;
+  }, [specJson]);
 
   const handleCopySpec = useCallback(() => {
     navigator.clipboard.writeText(specJson);
@@ -111,6 +126,15 @@ export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
             variant="ghost"
             size="icon"
             className="h-6 w-6"
+            onClick={() => dashboardStore.getState().toggleTableView(vizKey)}
+            title={isTableView ? 'Show chart' : 'Show table'}
+          >
+            {isTableView ? <BarChart3 className="h-3 w-3" /> : <Table2 className="h-3 w-3" />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
             onClick={handleToggleExpand}
             title={isExpanded ? 'Collapse' : 'Expand'}
           >
@@ -127,14 +151,26 @@ export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
                 <DialogTitle className="text-sm">UDI Grammar Spec</DialogTitle>
               </DialogHeader>
               <div className="relative">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute top-1 right-1 h-7 w-7"
-                  onClick={handleCopySpec}
-                >
-                  {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
-                </Button>
+                <div className="flex gap-1 absolute top-1 right-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={handleCopySpec}
+                    title="Copy spec"
+                  >
+                    {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => window.open(specEditorUrl, '_blank')}
+                    title="Open in UDI Grammar Editor"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
                 <pre className="text-xs overflow-auto max-h-[60vh] bg-muted p-3 rounded-md">
                   {specJson}
                 </pre>
@@ -162,8 +198,8 @@ export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
       )}
       <CardContent className="p-2">
         <UDIVis
-          key={specKey}
-          spec={plainSpec}
+          key={isTableView ? `table-${specKey}` : specKey}
+          spec={isTableView ? tableSpec : plainSpec}
           selections={externalSelections}
           onSelectionChange={handleSelectionChange}
         />

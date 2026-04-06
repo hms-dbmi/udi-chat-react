@@ -1,23 +1,27 @@
 import { useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useConversation } from '@/stores/UDIChatContext';
+import { useConversation, useGlobal } from '@/stores/UDIChatContext';
 import { MessageBubble } from './MessageBubble';
 import { Loader2 } from 'lucide-react';
 
 interface MessageListProps {
   isLoading: boolean;
+  showSystemPrompts?: boolean;
   onSelectSuggestion?: (suggestion: string) => void;
 }
 
-export function MessageList({ isLoading, onSelectSuggestion }: MessageListProps) {
+export function MessageList({ isLoading, showSystemPrompts, onSelectSuggestion }: MessageListProps) {
   const messages = useConversation((s) => s.messages);
+  const debugMode = useGlobal((s) => s.debugMode);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length, isLoading]);
 
-  const displayed = messages.filter((m) => m.role !== 'system');
+  const displayed = messages.filter(
+    (m) => m.role !== 'system' || (debugMode && showSystemPrompts),
+  );
 
   return (
     <ScrollArea className="flex-1 px-3">

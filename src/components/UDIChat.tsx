@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
-import { UDIChatProvider, useConversation, useDataPackageStore, useDashboardStore, useDataPackage, useDataFiltersStore, useDataFilters, useMemoryBankStore } from '@/stores/UDIChatContext';
+import { UDIChatProvider, useConversation, useDataPackageStore, useDashboardStore, useDataPackage, useDataFiltersStore, useDataFilters, useMemoryBankStore, useGlobal } from '@/stores/UDIChatContext';
 import { extractAllUdiSpecsFromMessage } from '@/stores/dashboardStore';
 import type { UDIGrammar } from 'udi-toolkit/react';
 import { ChatPanel } from './ChatPanel';
 import { DashboardPanel } from './DashboardPanel';
+import { ConversationList } from './ConversationList';
 import { ErrorBoundary } from './ErrorBoundary';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -25,9 +26,13 @@ function UDIChatInner({ apiBaseUrl, dataPackagePath, authToken, model, requireAp
   const dashboardStore = useDashboardStore();
   const dataFiltersStore = useDataFiltersStore();
   const memoryBankStore = useMemoryBankStore();
+  const debugMode = useGlobal((s) => s.debugMode);
   const messages = useConversation((s) => s.messages);
   const sourceFields = useDataPackage((s) => s.sourceFields);
-  const [openAiKey, setOpenAiKey] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [openAiKey, setOpenAiKey] = useState<string | null>(() => {
+    try { return localStorage.getItem('udi-chat-api-key'); } catch { return null; }
+  });
 
   // Load data package on mount
   useEffect(() => {
@@ -74,10 +79,12 @@ function UDIChatInner({ apiBaseUrl, dataPackagePath, authToken, model, requireAp
 
   const handleSetApiKey = useCallback((key: string) => {
     setOpenAiKey(key);
+    try { localStorage.setItem('udi-chat-api-key', key); } catch { /* noop */ }
   }, []);
 
   const handleClearApiKey = useCallback(() => {
     setOpenAiKey(null);
+    try { localStorage.removeItem('udi-chat-api-key'); } catch { /* noop */ }
   }, []);
 
   const queryConfig: QueryConfig = {
@@ -91,6 +98,12 @@ function UDIChatInner({ apiBaseUrl, dataPackagePath, authToken, model, requireAp
 
   return (
     <div className="flex h-full w-full bg-background">
+      {/* Sidebar drawer — debug mode only */}
+      {debugMode && drawerOpen && (
+        <div className="w-56 shrink-0 border-r bg-background overflow-hidden flex flex-col">
+          <ConversationList apiBaseUrl={apiBaseUrl} />
+        </div>
+      )}
       <div className="w-[400px] min-w-[300px] shrink-0 border-r flex flex-col">
         <ChatPanel
           config={queryConfig}
@@ -98,6 +111,9 @@ function UDIChatInner({ apiBaseUrl, dataPackagePath, authToken, model, requireAp
           hasApiKey={!!openAiKey}
           onSetApiKey={handleSetApiKey}
           onClearApiKey={handleClearApiKey}
+          showDrawerToggle={debugMode}
+          drawerOpen={drawerOpen}
+          onToggleDrawer={() => setDrawerOpen((v) => !v)}
         />
       </div>
       <div className="flex-1 min-w-0">
