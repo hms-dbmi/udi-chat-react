@@ -37,6 +37,22 @@ declare module 'udi-toolkit/react' {
   }
 
   export function UDIVis(props: UDIVisProps): JSX.Element;
+
+  export interface QueryDataSpec {
+    source: { name: string; source: string } | { name: string; source: string }[];
+    transformation?: any[];
+  }
+
+  export interface QueryDataResult {
+    displayData: object[];
+    allData: object[];
+    isSubset: boolean;
+  }
+
+  export function queryData(
+    spec: QueryDataSpec,
+    selections?: DataSelections,
+  ): Promise<QueryDataResult | null>;
 }
 
 declare module 'udi-toolkit' {

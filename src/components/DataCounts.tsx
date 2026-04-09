@@ -1,6 +1,7 @@
-import { useMemo, useCallback, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Users, FlaskConical, Table2, Loader2 } from 'lucide-react';
-import { UDIVis } from 'udi-toolkit/react';
+import { queryData } from 'udi-toolkit/react';
+import type { QueryDataSpec } from 'udi-toolkit/react';
 import { useDataPackage, useDashboard, useDataFilters, useDataFiltersStore, useDataPackageStore } from '@/stores/UDIChatContext';
 import { joinDataPath } from '@/utils/joinDataPath';
 
@@ -24,65 +25,6 @@ interface EntityChip {
   Icon: React.ComponentType<{ className?: string }>;
 }
 
-/** Hidden UDIVis that pushes filtered rows into the dataPackage store for download. */
-function EntityDataExporter({
-  entityName,
-  spec,
-  selections,
-  onData,
-}: {
-  entityName: string;
-  spec: object;
-  selections: object;
-  onData: (entity: string, displayRows: object[], allRows: object[]) => void;
-}) {
-  const handleDataReady = useCallback(
-    (payload: { data: object[] | null; allData: object[] | null }) => {
-      onData(
-        entityName,
-        Array.isArray(payload.data) ? payload.data : [],
-        Array.isArray(payload.allData) ? payload.allData : [],
-      );
-    },
-    [entityName, onData],
-  );
-
-  return (
-    <div style={{ display: 'none' }}>
-      <UDIVis spec={spec as any} selections={selections as any} onDataReady={handleDataReady} />
-    </div>
-  );
-}
-
-/** Hidden UDIVis that computes a filtered row count for one entity. */
-function EntityCounter({
-  entityName,
-  spec,
-  selections,
-  onCount,
-}: {
-  entityName: string;
-  spec: object;
-  selections: object;
-  onCount: (entity: string, count: number) => void;
-}) {
-  const handleDataReady = useCallback(
-    (payload: { data: object[] | null; allData: object[] | null }) => {
-      const rows = payload.data;
-      if (rows && rows.length > 0 && typeof (rows[0] as any).count === 'number') {
-        onCount(entityName, (rows[0] as any).count);
-      }
-    },
-    [entityName, onCount],
-  );
-
-  return (
-    <div style={{ display: 'none' }}>
-      <UDIVis spec={spec as any} selections={selections as any} onDataReady={handleDataReady} />
-    </div>
-  );
-}
-
 export function DataCounts() {
   const dataPackage = useDataPackage((s) => s.dataPackage);
   const entityNames = useDataPackage((s) => s.entityNames);
@@ -93,13 +35,6 @@ export function DataCounts() {
   const dataPackageStore = useDataPackageStore();
 
   const [filteredCounts, setFilteredCounts] = useState<Record<string, number>>({});
-
-  const handleCount = useCallback((entity: string, count: number) => {
-    setFilteredCounts((prev) => {
-      if (prev[entity] === count) return prev;
-      return { ...prev, [entity]: count };
-    });
-  }, []);
 
   const chips = useMemo<EntityChip[]>(() => {
     if (!dataPackage?.resources) return [];
@@ -135,7 +70,6 @@ export function DataCounts() {
     if (!dataPackage) return {};
     const dashState = {
       getNamedFilters: (ids: string[], source: string) => {
-        // Inline the getNamedFilters logic since we need it outside the store action
         const uuidToSource = new Map<string, string>();
         for (const v of pinnedVisualizations.values()) {
           const sn = Array.isArray(v.interactiveSpec.source)
@@ -166,13 +100,12 @@ export function DataCounts() {
       },
     };
 
-    const specs: Record<string, object> = {};
+    const specs: Record<string, QueryDataSpec> = {};
     for (const chip of chips) {
       const resource = dataPackage.resources.find((r) => r.name === chip.id);
       if (!resource) continue;
       const namedFilters = dashState.getNamedFilters(filterIds, chip.id);
       specs[chip.id] = {
-        config: { debounce: 500 },
         source: {
           name: chip.id,
           source: joinDataPath(dataPackage['udi:path'], resource.path),
@@ -189,18 +122,16 @@ export function DataCounts() {
   // Build a filtered-data spec per entity (same filters, no rollup) for download export
   const exportSpecs = useMemo(() => {
     if (!dataPackage) return {};
-    const specs: Record<string, object> = {};
+    const specs: Record<string, QueryDataSpec> = {};
     for (const chip of chips) {
       const resource = dataPackage.resources.find((r) => r.name === chip.id);
       if (!resource) continue;
-      // Reuse the count spec's transformation but strip the rollup
-      const countSpec = countSpecs[chip.id] as any;
+      const countSpec = countSpecs[chip.id];
       if (!countSpec) continue;
       const transformation = (countSpec.transformation as object[]).filter(
         (t: any) => !('rollup' in t),
       );
       specs[chip.id] = {
-        config: { debounce: 2000 },
         source: countSpec.source,
         transformation,
       };
@@ -208,21 +139,69 @@ export function DataCounts() {
     return specs;
   }, [chips, countSpecs, dataPackage]);
 
-  const handleExportData = useCallback(
-    (entity: string, displayRows: object[], allRows: object[]) => {
-      dataPackageStore.getState().setFilteredData(entity, {
-        displayRows: displayRows as Record<string, unknown>[],
-        allRows: allRows as Record<string, unknown>[],
-      });
-    },
-    [dataPackageStore],
-  );
-
-  // Merge selections for the hidden UDIVis instances
+  // Merge selections for queryData calls
   const mergedSelections = useMemo(
     () => ({ ...dataSelections }),
     [dataSelections],
   );
+
+  const domainsReady = loadingPhase === 'ready';
+
+  // Query filtered counts via queryData (replaces hidden EntityCounter UDIVis instances)
+  useEffect(() => {
+    if (!domainsReady) return;
+    let cancelled = false;
+
+    async function runCountQueries() {
+      for (const [entityName, spec] of Object.entries(countSpecs)) {
+        if (cancelled) return;
+        try {
+          const result = await queryData(spec, mergedSelections);
+          if (cancelled) return;
+          const rows = result?.displayData;
+          if (rows && rows.length > 0 && typeof (rows[0] as Record<string, unknown>).count === 'number') {
+            const count = (rows[0] as Record<string, unknown>).count as number;
+            setFilteredCounts((prev) => {
+              if (prev[entityName] === count) return prev;
+              return { ...prev, [entityName]: count };
+            });
+          }
+        } catch (e) {
+          console.error(`Failed to query count for ${entityName}:`, e);
+        }
+      }
+    }
+
+    runCountQueries();
+    return () => { cancelled = true; };
+  }, [domainsReady, countSpecs, mergedSelections]);
+
+  // Query filtered export data via queryData (replaces hidden EntityDataExporter UDIVis instances)
+  useEffect(() => {
+    if (!domainsReady) return;
+    let cancelled = false;
+
+    async function runExportQueries() {
+      for (const [entityName, spec] of Object.entries(exportSpecs)) {
+        if (cancelled) return;
+        try {
+          const result = await queryData(spec, mergedSelections);
+          if (cancelled) return;
+          if (result) {
+            dataPackageStore.getState().setFilteredData(entityName, {
+              displayRows: result.displayData as Record<string, unknown>[],
+              allRows: result.allData as Record<string, unknown>[],
+            });
+          }
+        } catch (e) {
+          console.error(`Failed to query export data for ${entityName}:`, e);
+        }
+      }
+    }
+
+    runExportQueries();
+    return () => { cancelled = true; };
+  }, [domainsReady, exportSpecs, mergedSelections, dataPackageStore]);
 
   // Skeleton placeholders while fetching the data package manifest
   if (loadingPhase === 'fetching' || loadingPhase === 'idle') {
@@ -245,7 +224,6 @@ export function DataCounts() {
   if (chips.length === 0) return null;
 
   const hasFilters = filterIds.length > 0;
-  const domainsReady = loadingPhase === 'ready';
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
@@ -282,29 +260,6 @@ export function DataCounts() {
           <Loader2 className="h-3 w-3 animate-spin" />
           <span>Loading fields...</span>
         </div>
-      )}
-      {/* Hidden UDIVis instances — only mount once domains are ready */}
-      {domainsReady && chips.map((chip) =>
-        countSpecs[chip.id] ? (
-          <EntityCounter
-            key={`count-${chip.id}`}
-            entityName={chip.id}
-            spec={countSpecs[chip.id]}
-            selections={mergedSelections}
-            onCount={handleCount}
-          />
-        ) : null,
-      )}
-      {domainsReady && chips.map((chip) =>
-        exportSpecs[chip.id] ? (
-          <EntityDataExporter
-            key={`export-${chip.id}`}
-            entityName={chip.id}
-            spec={exportSpecs[chip.id]}
-            selections={mergedSelections}
-            onData={handleExportData}
-          />
-        ) : null,
       )}
     </div>
   );
