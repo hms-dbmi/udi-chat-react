@@ -2,6 +2,7 @@ import { useMemo, useCallback, useState } from 'react';
 import { Users, FlaskConical, Table2 } from 'lucide-react';
 import { UDIVis } from 'udi-toolkit/react';
 import { useDataPackage, useDashboard, useDataFilters, useDataFiltersStore, useDataPackageStore } from '@/stores/UDIChatContext';
+import { joinDataPath } from '@/utils/joinDataPath';
 
 const ENTITY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   donors: Users,
@@ -85,6 +86,7 @@ function EntityCounter({
 export function DataCounts() {
   const dataPackage = useDataPackage((s) => s.dataPackage);
   const entityNames = useDataPackage((s) => s.entityNames);
+  const dataLoading = useDataPackage((s) => s.loading);
   const dataSelections = useDataFilters((s) => s.dataSelections);
   const pinnedVisualizations = useDashboard((s) => s.pinnedVisualizations);
   const dataFiltersStore = useDataFiltersStore();
@@ -173,7 +175,7 @@ export function DataCounts() {
         config: { debounce: 500 },
         source: {
           name: chip.id,
-          source: `${dataPackage['udi:path']}${resource.path}`,
+          source: joinDataPath(dataPackage['udi:path'], resource.path),
         },
         transformation: [
           ...namedFilters,
@@ -222,7 +224,7 @@ export function DataCounts() {
     [dataSelections],
   );
 
-  if (chips.length === 0) return null;
+  if (chips.length === 0 || dataLoading) return null;
 
   const hasFilters = filterIds.length > 0;
 

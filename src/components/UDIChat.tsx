@@ -9,10 +9,18 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { QueryConfig } from '@/api/completions';
+import type { DataPackage, DataFieldDomain } from '@/types/dataPackage';
 
 export interface UDIChatConfig {
   apiBaseUrl: string;
-  dataPackagePath: string;
+  /** URL to fetch a datapackage_udi.json from. Ignored when `dataPackage` is provided. */
+  dataPackagePath?: string;
+  /** Provide a DataPackage object directly instead of fetching from a URL. Takes precedence over `dataPackagePath`. */
+  dataPackage?: DataPackage;
+  /** Pre-computed field domains. When provided with `dataPackage`, skips CSV loading for domain computation. */
+  dataFieldDomains?: DataFieldDomain[];
+  /** Custom fetch options (e.g. headers, credentials) forwarded to all data-loading fetch calls. */
+  fetchOptions?: RequestInit;
   authToken?: string;
   /** If true, prompt the user to enter an OpenAI API key before chatting. */
   requireApiKey?: boolean;
@@ -21,7 +29,7 @@ export interface UDIChatConfig {
   style?: React.CSSProperties;
 }
 
-function UDIChatInner({ apiBaseUrl, dataPackagePath, authToken, model, requireApiKey }: UDIChatConfig) {
+function UDIChatInner({ apiBaseUrl, dataPackagePath, dataPackage: dataPackageProp, dataFieldDomains: dataFieldDomainsProp, fetchOptions, authToken, model, requireApiKey }: UDIChatConfig) {
   const dataPackageStore = useDataPackageStore();
   const dashboardStore = useDashboardStore();
   const dataFiltersStore = useDataFiltersStore();
@@ -36,8 +44,12 @@ function UDIChatInner({ apiBaseUrl, dataPackagePath, authToken, model, requireAp
 
   // Load data package on mount
   useEffect(() => {
-    dataPackageStore.getState().fetchDataPackage(dataPackagePath);
-  }, [dataPackageStore, dataPackagePath]);
+    if (dataPackageProp) {
+      dataPackageStore.getState().setDataPackage(dataPackageProp, dataFieldDomainsProp, fetchOptions);
+    } else if (dataPackagePath) {
+      dataPackageStore.getState().fetchDataPackage(dataPackagePath, fetchOptions);
+    }
+  }, [dataPackageStore, dataPackagePath, dataPackageProp, dataFieldDomainsProp, fetchOptions]);
 
   // Auto-pin visualizations from new assistant messages (batched to avoid O(n^2) cascade)
   useEffect(() => {

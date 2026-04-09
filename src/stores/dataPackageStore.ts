@@ -7,6 +7,7 @@ import type {
   EntityRelationship,
   ExportRowSet,
 } from '@/types/dataPackage';
+import { joinDataPath } from '@/utils/joinDataPath';
 
 export interface DataPackageState {
   dataPackage: DataPackage | null;
@@ -21,7 +22,12 @@ export interface DataPackageState {
   dataPackageString: string;
   dataDomainsString: string;
   filteredData: Map<string, ExportRowSet>;
-  fetchDataPackage: (path: string) => Promise<void>;
+  fetchDataPackage: (path: string, fetchOptions?: RequestInit) => Promise<void>;
+  setDataPackage: (
+    dataPackage: DataPackage,
+    precomputedDomains?: DataFieldDomain[],
+    fetchOptions?: RequestInit,
+  ) => Promise<void>;
   getDomainForField: (entity: string, field: string) => DataFieldDomain | undefined;
   isValidIntervalFilter: (entity: string, field: string) => ValidStatus;
   isValidPointFilter: (entity: string, field: string, values: unknown[]) => ValidStatus;
@@ -170,86 +176,141 @@ export function createDataPackageStore() {
       });
     },
 
-    fetchDataPackage: async (path: string) => {
+    fetchDataPackage: async (path: string, fetchOptions?: RequestInit) => {
       set({ loading: true, error: null });
       try {
-        const response = await fetch(path);
+        const response = await fetch(path, fetchOptions);
         const json = await response.json();
         if (json.resources && Array.isArray(json.resources)) {
           json.resources = json.resources.filter(
             (r: any) => r['udi:row_count'] && r['udi:row_count'] > 0,
           );
         }
-        set({
-          dataPackage: json,
-          loading: false,
-          sourceFields: computeSourceFields(json),
-          quantitativeSourceFields: computeQuantitativeSourceFields(json),
-          categoricalSourceFields: computeCategoricalSourceFields(json),
-          entityNames: computeEntityNames(json),
-          dataPackageString: computeDataPackageString(json),
-        });
-
-        // Initialize data field domains by loading CSVs
-        const folderPath = json['udi:path'];
-        for (const resource of json.resources ?? []) {
-          const entityName = resource.name;
-          const dataPath = resource.path;
-          const fullPath = `${folderPath}/${dataPath}`;
-          const fieldDescriptions: Record<string, string> = {};
-          for (const f of resource.schema?.fields ?? []) {
-            fieldDescriptions[f.name] = f.description ?? '';
-          }
-          try {
-            const { loadCSV } = await import('arquero');
-            const loadOptions: any = {};
-            if (fullPath.endsWith('.tsv')) loadOptions.delimiter = '\t';
-            const table = await loadCSV(fullPath, loadOptions);
-            const cols = table.columnNames();
-            const domains: DataFieldDomain[] = [];
-            for (const col of cols) {
-              const series = table.array(col);
-              const isNumeric = series.every((v: any) => v == null || !isNaN(+v));
-              if (isNumeric) {
-                const stats = table
-                  .rollup({
-                    min: `(d) => op.min(d["${col}"])`,
-                    max: `(d) => op.max(d["${col}"])`,
-                  })
-                  .objects()[0] as any;
-                domains.push({
-                  entity: entityName,
-                  field: col,
-                  type: 'interval',
-                  fieldDescription: fieldDescriptions[col] ?? '',
-                  domain: { min: stats.min, max: stats.max },
-                });
-              } else {
-                domains.push({
-                  entity: entityName,
-                  field: col,
-                  type: 'point',
-                  fieldDescription: fieldDescriptions[col] ?? '',
-                  domain: { values: Array.from(new Set(series)) as string[] },
-                });
-              }
-            }
-            set((state) => {
-              const nextDomains = [...state.dataFieldDomains, ...domains];
-              return {
-                dataFieldDomains: nextDomains,
-                dataDomainsString: computeDataDomainsString(nextDomains),
-              };
-            });
-          } catch (e) {
-            console.error(`Failed to load data for ${entityName}:`, e);
-          }
-        }
+        applyDataPackage(set, json);
+        await loadDomainsFromCSVs(set, json, fetchOptions);
       } catch (e) {
         set({ error: String(e), loading: false });
+      } finally {
+        set({ loading: false });
+      }
+    },
+
+    setDataPackage: async (
+      dp: DataPackage,
+      precomputedDomains?: DataFieldDomain[],
+      fetchOptions?: RequestInit,
+    ) => {
+      set({ loading: true, error: null });
+      try {
+        const filtered: DataPackage = {
+          ...dp,
+          resources: (dp.resources ?? []).filter(
+            (r) => r['udi:row_count'] && r['udi:row_count'] > 0,
+          ),
+        };
+        applyDataPackage(set, filtered);
+
+        if (precomputedDomains) {
+          set({
+            dataFieldDomains: precomputedDomains,
+            dataDomainsString: computeDataDomainsString(precomputedDomains),
+          });
+          return;
+        }
+
+        await loadDomainsFromCSVs(set, filtered, fetchOptions);
+      } catch (e) {
+        set({ error: String(e), loading: false });
+      } finally {
+        set({ loading: false });
       }
     },
   }));
+}
+
+/** Set derived state from a parsed data package (shared by fetch and set paths).
+ *  Does NOT set loading — the caller manages the loading lifecycle. */
+function applyDataPackage(
+  set: (partial: Partial<DataPackageState>) => void,
+  json: DataPackage,
+) {
+  set({
+    dataPackage: json,
+    sourceFields: computeSourceFields(json),
+    quantitativeSourceFields: computeQuantitativeSourceFields(json),
+    categoricalSourceFields: computeCategoricalSourceFields(json),
+    entityNames: computeEntityNames(json),
+    dataPackageString: computeDataPackageString(json),
+  });
+}
+
+/** Load CSVs and compute field domains. `fetchOptions` is forwarded to loadCSV. */
+async function loadDomainsFromCSVs(
+  set: (
+    partial:
+      | Partial<DataPackageState>
+      | ((state: DataPackageState) => Partial<DataPackageState>),
+  ) => void,
+  dp: DataPackage,
+  fetchOptions?: RequestInit,
+) {
+  const folderPath = dp['udi:path'];
+  if (!folderPath) {
+    console.warn('DataPackage has no udi:path — skipping CSV domain loading');
+    return;
+  }
+  for (const resource of dp.resources ?? []) {
+    const entityName = resource.name;
+    const fullPath = joinDataPath(folderPath, resource.path);
+    const fieldDescriptions: Record<string, string> = {};
+    for (const f of resource.schema?.fields ?? []) {
+      fieldDescriptions[f.name] = f.description ?? '';
+    }
+    try {
+      const { loadCSV } = await import('arquero');
+      const loadOptions: any = { ...fetchOptions };
+      if (fullPath.endsWith('.tsv')) loadOptions.delimiter = '\t';
+      const table = await loadCSV(fullPath, loadOptions);
+      const cols = table.columnNames();
+      const domains: DataFieldDomain[] = [];
+      for (const col of cols) {
+        const series = table.array(col);
+        const isNumeric = series.every((v: any) => v == null || !isNaN(+v));
+        if (isNumeric) {
+          const stats = table
+            .rollup({
+              min: `(d) => op.min(d["${col}"])`,
+              max: `(d) => op.max(d["${col}"])`,
+            })
+            .objects()[0] as any;
+          domains.push({
+            entity: entityName,
+            field: col,
+            type: 'interval',
+            fieldDescription: fieldDescriptions[col] ?? '',
+            domain: { min: stats.min, max: stats.max },
+          });
+        } else {
+          domains.push({
+            entity: entityName,
+            field: col,
+            type: 'point',
+            fieldDescription: fieldDescriptions[col] ?? '',
+            domain: { values: Array.from(new Set(series)) as string[] },
+          });
+        }
+      }
+      set((state) => {
+        const nextDomains = [...state.dataFieldDomains, ...domains];
+        return {
+          dataFieldDomains: nextDomains,
+          dataDomainsString: computeDataDomainsString(nextDomains),
+        };
+      });
+    } catch (e) {
+      console.error(`Failed to load data for ${entityName}:`, e);
+    }
+  }
 }
 
 function jsonClone<T>(obj: T): T {

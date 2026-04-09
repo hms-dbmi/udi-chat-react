@@ -50,12 +50,101 @@ import 'udi-chat-react/style.css';
 | Prop | Type | Description |
 |------|------|-------------|
 | `apiBaseUrl` | `string` | Base URL for the UDIAgent API |
-| `dataPackagePath` | `string` | Path to `datapackage_udi.json` |
+| `dataPackagePath` | `string?` | URL/path to `datapackage_udi.json`. Ignored when `dataPackage` is provided. |
+| `dataPackage` | `DataPackage?` | Provide a data package object directly instead of fetching from a URL. Takes precedence over `dataPackagePath`. |
+| `dataFieldDomains` | `DataFieldDomain[]?` | Pre-computed field domains. Skips CSV loading for domain computation when provided with `dataPackage`. |
+| `fetchOptions` | `RequestInit?` | Custom fetch options (headers, credentials, etc.) forwarded to all data-loading fetch calls. |
 | `authToken` | `string?` | JWT bearer token for API auth |
 | `requireApiKey` | `boolean?` | Show API key input before chatting |
 | `model` | `string?` | LLM model name override |
 | `className` | `string?` | CSS class for the root element |
 | `style` | `CSSProperties?` | Inline styles for the root element |
+
+### Data Source Configuration
+
+There are three ways to provide data to `UDIChat`, from simplest to most flexible:
+
+#### 1. Local data package file (default)
+
+Point `dataPackagePath` to a `datapackage_udi.json` file. The JSON must contain a `udi:path` base path and `resources` with relative file paths. CSVs are loaded client-side via Arquero.
+
+```tsx
+<UDIChat
+  apiBaseUrl="http://localhost:8007"
+  dataPackagePath="./data/hubmap_2025-05-05/datapackage_udi.json"
+/>
+```
+
+#### 2. Remote data sources
+
+Data packages can reference remote URLs. Set `udi:path` to a remote base URL and keep resource `path` values as relative filenames. Arquero's `loadCSV` uses `fetch()` internally, so remote URLs work out of the box.
+
+If the remote server requires authentication, pass `fetchOptions` with the necessary headers. These are forwarded to all `fetch()` calls — both the data package JSON fetch and CSV loading:
+
+```tsx
+<UDIChat
+  apiBaseUrl="http://localhost:8007"
+  dataPackagePath="https://portal.example.com/metadata/datapackage_udi.json"
+  fetchOptions={{
+    headers: { Authorization: 'Bearer <token>' },
+    credentials: 'include',
+  }}
+/>
+```
+
+> **Note:** The remote server must send appropriate CORS headers (`Access-Control-Allow-Origin`) for browser-based fetching to work.
+
+#### 3. Inline data package (no fetch)
+
+Pass a `DataPackage` object directly via the `dataPackage` prop. This is useful when you build the schema programmatically or receive it from an API. CSVs are still loaded from the URLs in `udi:path` + `resource.path` for domain computation, unless you also provide `dataFieldDomains` to skip that step entirely.
+
+```tsx
+import type { DataPackage } from 'udi-chat-react';
+
+const myDataPackage: DataPackage = {
+  'udi:path': 'https://portal.hubmapconsortium.org/metadata/v0/',
+  resources: [
+    {
+      name: 'donors',
+      path: 'donors.tsv',
+      'udi:row_count': 281,
+      schema: {
+        fields: [
+          { name: 'age_value', description: 'The time elapsed since birth.', 'udi:data_type': 'quantitative' },
+          { name: 'sex', description: 'Biological sex of the donor.', 'udi:data_type': 'nominal' },
+          // ... more fields
+        ],
+      },
+    },
+    // ... more resources
+  ],
+};
+
+<UDIChat
+  apiBaseUrl="http://localhost:8007"
+  dataPackage={myDataPackage}
+/>
+```
+
+To skip CSV loading entirely (e.g. when you already have domain metadata), pass pre-computed domains:
+
+```tsx
+import type { DataFieldDomain } from 'udi-chat-react';
+
+const myDomains: DataFieldDomain[] = [
+  { entity: 'donors', field: 'age_value', type: 'interval', fieldDescription: 'The time elapsed since birth.', domain: { min: 1, max: 87 } },
+  { entity: 'donors', field: 'sex', type: 'point', fieldDescription: 'Biological sex of the donor.', domain: { values: ['Male', 'Female'] } },
+  // ...
+];
+
+<UDIChat
+  apiBaseUrl="http://localhost:8007"
+  dataPackage={myDataPackage}
+  dataFieldDomains={myDomains}
+/>
+```
+
+See [`examples/hubmap-remote.tsx`](examples/hubmap-remote.tsx) for a full working example using remote HuBMAP Portal data.
 
 ## Features
 
@@ -147,8 +236,11 @@ src/
     dataPackage.ts            # DataPackage, DataFieldDomain, etc.
   utils/
     structuredTextParser.ts   # Template function evaluation for explanations
+    joinDataPath.ts           # Path joining for local + remote data URLs
   lib/
     utils.ts                  # cn() helper (clsx + tailwind-merge)
+examples/
+  hubmap-remote.tsx           # Example: inline DataPackage with remote HuBMAP URLs
 ```
 
 ## API Integration
