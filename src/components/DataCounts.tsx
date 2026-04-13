@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { Users, FlaskConical, Table2, Loader2 } from 'lucide-react';
 import { queryData } from 'udi-toolkit/react';
 import type { QueryDataSpec } from 'udi-toolkit/react';
-import { useDataPackage, useDashboard, useDataFilters, useDataFiltersStore, useDataPackageStore } from '@/stores/UDIChatContext';
+import { useDataPackage, useDashboard, useDataFilters, useDataFiltersStore, useDataPackageStore, useSelections } from '@/stores/UDIChatContext';
 import { joinDataPath } from '@/utils/joinDataPath';
 
 const ENTITY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -30,6 +30,8 @@ export function DataCounts() {
   const entityNames = useDataPackage((s) => s.entityNames);
   const loadingPhase = useDataPackage((s) => s.loadingPhase);
   const dataSelections = useDataFilters((s) => s.dataSelections);
+  const internalDataSelections = useDataFilters((s) => s.internalDataSelections);
+  const vizSelections = useSelections((s) => s.selections);
   const pinnedVisualizations = useDashboard((s) => s.pinnedVisualizations);
   const dataFiltersStore = useDataFiltersStore();
   const dataPackageStore = useDataPackageStore();
@@ -139,10 +141,10 @@ export function DataCounts() {
     return specs;
   }, [chips, countSpecs, dataPackage]);
 
-  // Merge selections for queryData calls
+  // Merge all selection sources: viz brush selections + LLM FilterData + internal
   const mergedSelections = useMemo(
-    () => ({ ...dataSelections }),
-    [dataSelections],
+    () => ({ ...vizSelections, ...dataSelections, ...internalDataSelections }),
+    [vizSelections, dataSelections, internalDataSelections],
   );
 
   const domainsReady = loadingPhase === 'ready';
