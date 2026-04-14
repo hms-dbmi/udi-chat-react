@@ -13,14 +13,26 @@ export function createSelectionsStore() {
 
     updateSelections: (newSelections) => {
       const current = get().selections;
-      // Skip update if every incoming key already has the same serialized value.
-      const hasChange = Object.entries(newSelections).some(
-        ([key, val]) =>
+      const next = { ...current };
+      let changed = false;
+
+      for (const [key, val] of Object.entries(newSelections)) {
+        if (val.selection == null) {
+          // Remove cleared selections instead of storing them.
+          if (key in next) {
+            delete next[key];
+            changed = true;
+          }
+        } else if (
           !(key in current) ||
-          JSON.stringify(current[key]) !== JSON.stringify(val),
-      );
-      if (!hasChange) return;
-      set({ selections: { ...current, ...newSelections } });
+          JSON.stringify(current[key]) !== JSON.stringify(val)
+        ) {
+          next[key] = val;
+          changed = true;
+        }
+      }
+
+      if (changed) set({ selections: next });
     },
 
     clearSelections: () => set({ selections: {} }),
