@@ -237,7 +237,11 @@ export function createDashboardStore() {
     isPinned: (key) => get().pinnedVisualizations.has(key),
 
     clearAllVisualizations: () =>
-      set({ pinnedVisualizations: new Map(), expandedVisualizations: new Set(), tableViewKeys: new Set() }),
+      set({
+        pinnedVisualizations: new Map(),
+        expandedVisualizations: new Set(),
+        tableViewKeys: new Set(),
+      }),
 
     setFilterAllNullValues: (value) => set({ filterAllNullValues: value }),
 
@@ -366,7 +370,9 @@ export function createDashboardStore() {
 
         const newTransformation = [...newFilters, ...baseTrans, ...nullFilters];
 
-        if (JSON.stringify(viz.interactiveSpec.transformation) !== JSON.stringify(newTransformation)) {
+        if (
+          JSON.stringify(viz.interactiveSpec.transformation) !== JSON.stringify(newTransformation)
+        ) {
           const updatedSpec = structuredClone(viz.interactiveSpec);
           (updatedSpec as any).transformation = newTransformation;
           next.set(key, { ...viz, interactiveSpec: updatedSpec });

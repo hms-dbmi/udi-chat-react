@@ -2,7 +2,14 @@ import { useMemo, useState, useEffect } from 'react';
 import { Users, FlaskConical, Table2, Loader2 } from 'lucide-react';
 import { queryData } from 'udi-toolkit/react';
 import type { QueryDataSpec } from 'udi-toolkit/react';
-import { useDataPackage, useDashboard, useDataFilters, useDataFiltersStore, useDataPackageStore, useSelections } from '@/stores/UDIChatContext';
+import {
+  useDataPackage,
+  useDashboard,
+  useDataFilters,
+  useDataFiltersStore,
+  useDataPackageStore,
+  useSelections,
+} from '@/stores/UDIChatContext';
 import { joinDataPath } from '@/utils/joinDataPath';
 
 const ENTITY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -111,10 +118,7 @@ export function DataCounts() {
           name: chip.id,
           source: joinDataPath(dataPackage['udi:path'], resource.path),
         },
-        transformation: [
-          ...namedFilters,
-          { rollup: { count: { op: 'count' } } },
-        ],
+        transformation: [...namedFilters, { rollup: { count: { op: 'count' } } }],
       };
     }
     return specs;
@@ -160,7 +164,11 @@ export function DataCounts() {
           const result = await queryData(spec, mergedSelections);
           if (cancelled) return;
           const rows = result?.displayData;
-          if (rows && rows.length > 0 && typeof (rows[0] as Record<string, unknown>).count === 'number') {
+          if (
+            rows &&
+            rows.length > 0 &&
+            typeof (rows[0] as Record<string, unknown>).count === 'number'
+          ) {
             const count = (rows[0] as Record<string, unknown>).count as number;
             setFilteredCounts((prev) => {
               if (prev[entityName] === count) return prev;
@@ -174,7 +182,9 @@ export function DataCounts() {
     }
 
     runCountQueries();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [domainsReady, countSpecs, mergedSelections]);
 
   // Query filtered export data via queryData (replaces hidden EntityDataExporter UDIVis instances)
@@ -201,7 +211,9 @@ export function DataCounts() {
     }
 
     runExportQueries();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [domainsReady, exportSpecs, mergedSelections, dataPackageStore]);
 
   // Skeleton placeholders while fetching the data package manifest
@@ -210,7 +222,10 @@ export function DataCounts() {
     return (
       <div className="flex items-center gap-2">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="inline-flex items-center gap-1.5 rounded-md border bg-muted px-2.5 py-1.5 animate-pulse">
+          <div
+            key={i}
+            className="inline-flex items-center gap-1.5 rounded-md border bg-muted px-2.5 py-1.5 animate-pulse"
+          >
             <div className="h-5 w-5 rounded bg-muted-foreground/20" />
             <div className="flex flex-col items-center gap-1">
               <div className="h-4 w-8 rounded bg-muted-foreground/20" />
@@ -230,7 +245,8 @@ export function DataCounts() {
     <div className="flex items-center gap-2 flex-wrap">
       {chips.map((chip) => {
         const filtered = filteredCounts[chip.id];
-        const isFiltered = domainsReady && hasFilters && filtered != null && filtered !== chip.totalCount;
+        const isFiltered =
+          domainsReady && hasFilters && filtered != null && filtered !== chip.totalCount;
         return (
           <div
             key={chip.id}
@@ -244,7 +260,8 @@ export function DataCounts() {
                   <>
                     {filtered.toLocaleString()}
                     <span className="text-xs font-normal text-muted-foreground">
-                      {' '}/ {chip.totalCount.toLocaleString()}
+                      {' '}
+                      / {chip.totalCount.toLocaleString()}
                     </span>
                   </>
                 ) : (

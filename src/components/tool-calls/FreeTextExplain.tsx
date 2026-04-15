@@ -27,10 +27,7 @@ const markdownComponents: Components = {
     <code className="rounded bg-muted px-1 py-0.5 text-[0.85em] font-mono" {...props} />
   ),
   pre: (props) => (
-    <pre
-      className="my-2 overflow-x-auto rounded bg-muted p-2 text-[0.85em] font-mono"
-      {...props}
-    />
+    <pre className="my-2 overflow-x-auto rounded bg-muted p-2 text-[0.85em] font-mono" {...props} />
   ),
   a: (props) => (
     <a className="text-udi-primary underline" target="_blank" rel="noreferrer" {...props} />
@@ -48,9 +45,7 @@ export function FreeTextExplain({ text, has_structured_elements }: FreeTextExpla
     if (has_structured_elements && hasStructuredReferences(raw)) {
       const dpState = dataPackageStore.getState();
       const segments = evaluateStructuredText(raw, dpState);
-      raw = segments
-        .map((s) => (s.type === 'value' ? `**${s.content}**` : s.content))
-        .join('');
+      raw = segments.map((s) => (s.type === 'value' ? `**${s.content}**` : s.content)).join('');
     }
     return raw;
   }, [text, has_structured_elements, dataPackageStore]);

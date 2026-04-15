@@ -1,12 +1,12 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+@import '@fontsource-variable/geist';
 
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --color-udi-primary: #57B4E9;
+  --color-udi-primary: #57b4e9;
   --color-udi-gray-100: #eff3f5;
   --color-udi-gray-300: #cad5da;
   --color-udi-gray-800: #384853;

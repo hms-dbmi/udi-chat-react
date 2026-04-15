@@ -2,7 +2,13 @@ import { useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Plus } from 'lucide-react';
-import { useConversationStore, useDashboardStore, useSelectionsStore, useMemoryBankStore, useDataFiltersStore } from '@/stores/UDIChatContext';
+import {
+  useConversationStore,
+  useDashboardStore,
+  useSelectionsStore,
+  useMemoryBankStore,
+  useDataFiltersStore,
+} from '@/stores/UDIChatContext';
 
 const CONVERSATION_FILES = [
   'filter/simple.json',
@@ -78,7 +84,12 @@ export function ConversationList() {
         </h3>
       </div>
       <div className="px-2">
-        <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-xs" onClick={handleNew}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start gap-2 text-xs"
+          onClick={handleNew}
+        >
           <Plus className="h-3.5 w-3.5" />
           New Conversation
         </Button>

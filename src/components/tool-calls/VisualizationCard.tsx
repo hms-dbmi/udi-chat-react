@@ -13,7 +13,13 @@ interface VisualizationCardProps {
   toolCallIndex?: number;
 }
 
-export function VisualizationCard({ spec, isPinned, title, messageIndex, toolCallIndex }: VisualizationCardProps) {
+export function VisualizationCard({
+  spec,
+  isPinned,
+  title,
+  messageIndex,
+  toolCallIndex,
+}: VisualizationCardProps) {
   const displaySpec = useMemo(() => spec, [spec]);
   const sourceResolver = useDataPackage((s) => s.sourceResolver);
   const pinnedVisualizations = useDashboard((s) => s.pinnedVisualizations);

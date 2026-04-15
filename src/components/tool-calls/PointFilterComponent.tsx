@@ -51,9 +51,7 @@ export function PointFilterComponent({
   const handleToggle = useCallback(
     (value: string, checked: boolean) => {
       if (!field) return;
-      const next = checked
-        ? [...selectedValues, value]
-        : selectedValues.filter((v) => v !== value);
+      const next = checked ? [...selectedValues, value] : selectedValues.filter((v) => v !== value);
       setDataSelection(filterKey, {
         ...dataSelection,
         selection: { ...dataSelection.selection, [field]: next },
@@ -107,7 +105,9 @@ export function PointFilterComponent({
               </SelectTrigger>
               <SelectContent>
                 {entityNames.map((e) => (
-                  <SelectItem key={e} value={e}>{e}</SelectItem>
+                  <SelectItem key={e} value={e}>
+                    {e}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -117,7 +117,9 @@ export function PointFilterComponent({
               </SelectTrigger>
               <SelectContent>
                 {fieldOptions.map((f) => (
-                  <SelectItem key={f} value={f}>{f}</SelectItem>
+                  <SelectItem key={f} value={f}>
+                    {f}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>

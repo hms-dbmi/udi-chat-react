@@ -64,9 +64,7 @@ function messageIndexFromKey(filterKey: string): number | null {
 }
 
 export function containsFilterCall(message: Message): boolean {
-  return (
-    message.tool_calls?.some((call) => getToolCallName(call) === 'FilterData') ?? false
-  );
+  return message.tool_calls?.some((call) => getToolCallName(call) === 'FilterData') ?? false;
 }
 
 export function extractAllFilterSpecsFromMessage(message: Message): ExtractedFilter[] {

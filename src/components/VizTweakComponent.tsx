@@ -6,7 +6,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useDataPackage, useDashboardStore, useDataFiltersStore, useDataPackageStore } from '@/stores/UDIChatContext';
+import {
+  useDataPackage,
+  useDashboardStore,
+  useDataFiltersStore,
+  useDataPackageStore,
+} from '@/stores/UDIChatContext';
 import type { UDIGrammar } from 'udi-toolkit/react';
 
 interface TweakableParam {
@@ -49,7 +54,7 @@ export function VizTweakComponent({ spec, messageIndex, toolCallIndex }: VizTwea
       allMappings.push(...mappings);
     }
 
-    const entityFields = sourceName ? sourceFields?.[sourceName] ?? [] : [];
+    const entityFields = sourceName ? (sourceFields?.[sourceName] ?? []) : [];
     const seen = new Set<string>();
 
     return allMappings
@@ -65,8 +70,12 @@ export function VizTweakComponent({ spec, messageIndex, toolCallIndex }: VizTwea
         encoding: m.encoding as string,
         options:
           m.type === 'quantitative'
-            ? (sourceName ? quantitativeSourceFields?.[sourceName] ?? [] : [])
-            : (sourceName ? categoricalSourceFields?.[sourceName] ?? [] : []),
+            ? sourceName
+              ? (quantitativeSourceFields?.[sourceName] ?? [])
+              : []
+            : sourceName
+              ? (categoricalSourceFields?.[sourceName] ?? [])
+              : [],
       }));
   }, [spec, sourceName, sourceFields, quantitativeSourceFields, categoricalSourceFields]);
 
@@ -82,7 +91,15 @@ export function VizTweakComponent({ spec, messageIndex, toolCallIndex }: VizTwea
       // Reapply filter transformations to the updated spec (null filters, named filters)
       dashboardStore.getState().updateSpecFilters(dataFiltersStore, dataPackageStore);
     },
-    [spec, dashboardStore, dataFiltersStore, dataPackageStore, messageIndex, toolCallIndex, sourceFields],
+    [
+      spec,
+      dashboardStore,
+      dataFiltersStore,
+      dataPackageStore,
+      messageIndex,
+      toolCallIndex,
+      sourceFields,
+    ],
   );
 
   if (tweakableParams.length === 0) return null;

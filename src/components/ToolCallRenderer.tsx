@@ -17,7 +17,14 @@ interface ToolCallRendererProps {
   toolCallIndex?: number;
 }
 
-export function ToolCallRenderer({ toolCall, isPinned, onSelectSuggestion, message, messageIndex, toolCallIndex }: ToolCallRendererProps) {
+export function ToolCallRenderer({
+  toolCall,
+  isPinned,
+  onSelectSuggestion,
+  message,
+  messageIndex,
+  toolCallIndex,
+}: ToolCallRendererProps) {
   const args = toolCall.arguments;
 
   switch (toolCall.name) {

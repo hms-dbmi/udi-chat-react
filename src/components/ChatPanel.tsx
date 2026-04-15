@@ -1,7 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { RotateCcw, KeyRound, RotateCw, Save, Lightbulb, FileDown, FlaskConical, Database, Menu } from 'lucide-react';
+import {
+  RotateCcw,
+  KeyRound,
+  RotateCw,
+  Save,
+  Lightbulb,
+  FileDown,
+  FlaskConical,
+  Database,
+  Menu,
+} from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import {
@@ -11,12 +21,25 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { useConversation, useGlobal, useGlobalStore, useDataPackageStore, useDataPackage } from '@/stores/UDIChatContext';
+import {
+  useConversation,
+  useGlobal,
+  useGlobalStore,
+  useDataPackageStore,
+  useDataPackage,
+} from '@/stores/UDIChatContext';
 import { ChatInput } from './ChatInput';
 import { ApiKeyInput } from './ApiKeyInput';
 import { MessageList } from './MessageList';
 import { useChatApi } from '@/hooks/useChatApi';
-import { useConversationStore, useDashboardStore, useSelectionsStore, useMemoryBank, useMemoryBankStore, useDataFiltersStore } from '@/stores/UDIChatContext';
+import {
+  useConversationStore,
+  useDashboardStore,
+  useSelectionsStore,
+  useMemoryBank,
+  useMemoryBankStore,
+  useDataFiltersStore,
+} from '@/stores/UDIChatContext';
 import type { QueryConfig } from '@/api/completions';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -31,7 +54,15 @@ interface ChatPanelProps {
   onToggleDrawer?: () => void;
 }
 
-export function ChatPanel({ config, needsApiKey, hasApiKey, onSetApiKey, onClearApiKey, showDrawerToggle, onToggleDrawer }: ChatPanelProps) {
+export function ChatPanel({
+  config,
+  needsApiKey,
+  hasApiKey,
+  onSetApiKey,
+  onClearApiKey,
+  showDrawerToggle,
+  onToggleDrawer,
+}: ChatPanelProps) {
   const { sendMessage, isLoading, error } = useChatApi(config);
   const conversationStore = useConversationStore();
   const globalStore = useGlobalStore();
@@ -117,15 +148,18 @@ export function ChatPanel({ config, needsApiKey, hasApiKey, onSetApiKey, onClear
     URL.revokeObjectURL(url);
   }, [conversationStore]);
 
-  const downloadBlob = useCallback((content: string, filename: string, type = 'application/json') => {
-    const blob = new Blob([content], { type });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, []);
+  const downloadBlob = useCallback(
+    (content: string, filename: string, type = 'application/json') => {
+      const blob = new Blob([content], { type });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+    [],
+  );
 
   const handleExportTestCase = useCallback(() => {
     const messages = conversationStore.getState().getMessagesFormattedForLLM();
@@ -138,7 +172,12 @@ export function ChatPanel({ config, needsApiKey, hasApiKey, onSetApiKey, onClear
     if (containsFilter && containsVis) orchestrator_choice = 'both';
     else if (containsFilter) orchestrator_choice = 'get-subset-of-data';
     const testCase = {
-      input: { model: config.model, messages, dataSchema: dpState.dataPackageString, dataDomains: dpState.dataDomainsString },
+      input: {
+        model: config.model,
+        messages,
+        dataSchema: dpState.dataPackageString,
+        dataDomains: dpState.dataDomainsString,
+      },
       expected: { tool_calls, orchestrator_choice },
     };
     downloadBlob(JSON.stringify(testCase, null, 2), 'test_case.json');
@@ -158,7 +197,13 @@ export function ChatPanel({ config, needsApiKey, hasApiKey, onSetApiKey, onClear
       <div className="flex items-center justify-between px-3 py-2">
         <div className="flex items-center gap-1">
           {showDrawerToggle && (
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleDrawer} title="Toggle conversations">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={onToggleDrawer}
+              title="Toggle conversations"
+            >
               <Menu className="h-3.5 w-3.5" />
             </Button>
           )}
@@ -201,7 +246,9 @@ export function ChatPanel({ config, needsApiKey, hasApiKey, onSetApiKey, onClear
           {hasApiKey && (
             <Tooltip>
               <TooltipTrigger
-                render={<Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClearApiKey} />}
+                render={
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClearApiKey} />
+                }
               >
                 <KeyRound className="h-3.5 w-3.5 text-green-600" />
               </TooltipTrigger>
@@ -212,7 +259,14 @@ export function ChatPanel({ config, needsApiKey, hasApiKey, onSetApiKey, onClear
             <>
               <Tooltip>
                 <TooltipTrigger
-                  render={<Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSaveConversation} />}
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={handleSaveConversation}
+                    />
+                  }
                 >
                   <Save className="h-3.5 w-3.5" />
                 </TooltipTrigger>
@@ -220,7 +274,14 @@ export function ChatPanel({ config, needsApiKey, hasApiKey, onSetApiKey, onClear
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger
-                  render={<Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleExportTestCase} />}
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={handleExportTestCase}
+                    />
+                  }
                 >
                   <FlaskConical className="h-3.5 w-3.5" />
                 </TooltipTrigger>
@@ -228,7 +289,14 @@ export function ChatPanel({ config, needsApiKey, hasApiKey, onSetApiKey, onClear
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger
-                  render={<Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleDownloadDataDomains} />}
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={handleDownloadDataDomains}
+                    />
+                  }
                 >
                   <Database className="h-3.5 w-3.5" />
                 </TooltipTrigger>
@@ -236,7 +304,14 @@ export function ChatPanel({ config, needsApiKey, hasApiKey, onSetApiKey, onClear
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger
-                  render={<Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleDownloadDataSchema} />}
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={handleDownloadDataSchema}
+                    />
+                  }
                 >
                   <FileDown className="h-3.5 w-3.5" />
                 </TooltipTrigger>
@@ -269,7 +344,11 @@ export function ChatPanel({ config, needsApiKey, hasApiKey, onSetApiKey, onClear
       )}
 
       {/* Messages */}
-      <MessageList isLoading={isLoading} showSystemPrompts={showSystemPrompts} onSelectSuggestion={handleSuggestion} />
+      <MessageList
+        isLoading={isLoading}
+        showSystemPrompts={showSystemPrompts}
+        onSelectSuggestion={handleSuggestion}
+      />
 
       {/* Error */}
       {error && (

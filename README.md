@@ -7,10 +7,27 @@ React implementation of the UDI Chat interface — an AI-powered system for quer
 ```bash
 pnpm install
 pnpm dev          # dev server
-pnpm build        # library build (dist/)
-pnpm build:app    # standalone app build
+pnpm build        # standalone app build (dist/)
+pnpm build:lib    # library build (dist/, consumes entry from src/index.ts)
 pnpm lint         # eslint
+pnpm format       # prettier
+pnpm typecheck    # tsc --noEmit
+pnpm test         # vitest (one-shot)
+pnpm test:watch   # vitest in watch mode
 ```
+
+### Standalone app config (env vars)
+
+The standalone `App.tsx` reads these Vite env vars (see `.env.example`). Copy `.env.example` to `.env.local` to override locally:
+
+| Var                        | Default                                        | Purpose                                             |
+| -------------------------- | ---------------------------------------------- | --------------------------------------------------- |
+| `VITE_UDI_API_BASE_URL`    | `http://localhost:8007`                        | UDIAgent FastAPI server URL                         |
+| `VITE_UDI_DATA_PACKAGE`    | `/data/hubmap_2025-05-05/datapackage_udi.json` | Path/URL to a `datapackage_udi.json`                |
+| `VITE_UDI_REQUIRE_API_KEY` | `true`                                         | Set to `false` to skip the in-app OpenAI key prompt |
+| `VITE_UDI_MODEL`           | (unset)                                        | Optional LLM model override                         |
+
+> **Note on `build` vs `build:lib`**: `pnpm build` produces a deployable standalone SPA — this is the default so CI/deploy pipelines behave as expected. To build the publishable library bundle (the `UDIChat` React component), use `pnpm build:lib`, which invokes `vite build --mode lib` and emits both JS and `.d.ts` files under `dist/`.
 
 ## Stack
 
@@ -39,26 +56,26 @@ import 'udi-chat-react/style.css';
 <UDIChat
   apiBaseUrl="http://localhost:8007"
   dataPackagePath="./data/hubmap_2025-05-05/datapackage_udi.json"
-  authToken="your-jwt-token"        // optional
-  requireApiKey                      // optional — prompts for OpenAI key
-  model="agenticx/UDI-VIS-Beta-v2"  // optional
-/>
+  authToken="your-jwt-token" // optional
+  requireApiKey // optional — prompts for OpenAI key
+  model="agenticx/UDI-VIS-Beta-v2" // optional
+/>;
 ```
 
 ### Config Props
 
-| Prop | Type | Description |
-|------|------|-------------|
-| `apiBaseUrl` | `string` | Base URL for the UDIAgent API |
-| `dataPackagePath` | `string?` | URL/path to `datapackage_udi.json`. Ignored when `dataPackage` is provided. |
-| `dataPackage` | `DataPackage?` | Provide a data package object directly instead of fetching from a URL. Takes precedence over `dataPackagePath`. |
-| `dataFieldDomains` | `DataFieldDomain[]?` | Pre-computed field domains. Skips CSV loading for domain computation when provided with `dataPackage`. |
-| `fetchOptions` | `RequestInit?` | Custom fetch options (headers, credentials, etc.) forwarded to all data-loading fetch calls. |
-| `authToken` | `string?` | JWT bearer token for API auth |
-| `requireApiKey` | `boolean?` | Show API key input before chatting |
-| `model` | `string?` | LLM model name override |
-| `className` | `string?` | CSS class for the root element |
-| `style` | `CSSProperties?` | Inline styles for the root element |
+| Prop               | Type                 | Description                                                                                                     |
+| ------------------ | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `apiBaseUrl`       | `string`             | Base URL for the UDIAgent API                                                                                   |
+| `dataPackagePath`  | `string?`            | URL/path to `datapackage_udi.json`. Ignored when `dataPackage` is provided.                                     |
+| `dataPackage`      | `DataPackage?`       | Provide a data package object directly instead of fetching from a URL. Takes precedence over `dataPackagePath`. |
+| `dataFieldDomains` | `DataFieldDomain[]?` | Pre-computed field domains. Skips CSV loading for domain computation when provided with `dataPackage`.          |
+| `fetchOptions`     | `RequestInit?`       | Custom fetch options (headers, credentials, etc.) forwarded to all data-loading fetch calls.                    |
+| `authToken`        | `string?`            | JWT bearer token for API auth                                                                                   |
+| `requireApiKey`    | `boolean?`           | Show API key input before chatting                                                                              |
+| `model`            | `string?`            | LLM model name override                                                                                         |
+| `className`        | `string?`            | CSS class for the root element                                                                                  |
+| `style`            | `CSSProperties?`     | Inline styles for the root element                                                                              |
 
 ### Data Source Configuration
 
@@ -110,7 +127,11 @@ const myDataPackage: DataPackage = {
       'udi:row_count': 281,
       schema: {
         fields: [
-          { name: 'age_value', description: 'The time elapsed since birth.', 'udi:data_type': 'quantitative' },
+          {
+            name: 'age_value',
+            description: 'The time elapsed since birth.',
+            'udi:data_type': 'quantitative',
+          },
           { name: 'sex', description: 'Biological sex of the donor.', 'udi:data_type': 'nominal' },
           // ... more fields
         ],
@@ -120,10 +141,7 @@ const myDataPackage: DataPackage = {
   ],
 };
 
-<UDIChat
-  apiBaseUrl="http://localhost:8007"
-  dataPackage={myDataPackage}
-/>
+<UDIChat apiBaseUrl="http://localhost:8007" dataPackage={myDataPackage} />;
 ```
 
 To skip CSV loading entirely (e.g. when you already have domain metadata), pass pre-computed domains:
@@ -132,8 +150,20 @@ To skip CSV loading entirely (e.g. when you already have domain metadata), pass 
 import type { DataFieldDomain } from 'udi-chat-react';
 
 const myDomains: DataFieldDomain[] = [
-  { entity: 'donors', field: 'age_value', type: 'interval', fieldDescription: 'The time elapsed since birth.', domain: { min: 1, max: 87 } },
-  { entity: 'donors', field: 'sex', type: 'point', fieldDescription: 'Biological sex of the donor.', domain: { values: ['Male', 'Female'] } },
+  {
+    entity: 'donors',
+    field: 'age_value',
+    type: 'interval',
+    fieldDescription: 'The time elapsed since birth.',
+    domain: { min: 1, max: 87 },
+  },
+  {
+    entity: 'donors',
+    field: 'sex',
+    type: 'point',
+    fieldDescription: 'Biological sex of the donor.',
+    domain: { values: ['Male', 'Female'] },
+  },
   // ...
 ];
 
@@ -141,7 +171,7 @@ const myDomains: DataFieldDomain[] = [
   apiBaseUrl="http://localhost:8007"
   dataPackage={myDataPackage}
   dataFieldDomains={myDomains}
-/>
+/>;
 ```
 
 See [`examples/hubmap-remote.tsx`](examples/hubmap-remote.tsx) for a full working example using remote HuBMAP Portal data.
@@ -149,6 +179,7 @@ See [`examples/hubmap-remote.tsx`](examples/hubmap-remote.tsx) for a full workin
 ## Features
 
 ### Chat Interface
+
 - Natural language input with LLM-powered responses
 - Tool call rendering: visualizations, filters, explanations, clarifications, rebuffs
 - Example prompts dialog (fetched from backend `/v1/yac/examples`)
@@ -156,6 +187,7 @@ See [`examples/hubmap-remote.tsx`](examples/hubmap-remote.tsx) for a full workin
 - API key input with localStorage persistence
 
 ### Visualization Dashboard
+
 - Auto-pinned visualizations from assistant responses
 - Interactive Vega-Lite charts via UDI Grammar spec → UDIVis (Vue CE)
 - **Cross-chart filtering**: brush selections on one chart filter all others
@@ -167,6 +199,7 @@ See [`examples/hubmap-remote.tsx`](examples/hubmap-remote.tsx) for a full workin
 - **Memory bank**: restore recently closed visualizations
 
 ### Data Filtering
+
 - **Interval filters**: range sliders for numeric fields
 - **Point filters**: checkbox selection for categorical fields
 - **Filter toolbar**: active filter chips with clear buttons
@@ -174,11 +207,13 @@ See [`examples/hubmap-remote.tsx`](examples/hubmap-remote.tsx) for a full workin
 - **Null value filtering** toggle
 
 ### Data Management
+
 - **Entity counts**: per-entity row counts with dynamic filtered counts
 - **Download**: filtered data as ZIP of CSVs, or manifest (hubmap_id extraction)
 - Data package loading with domain computation (Arquero)
 
 ### Debug Mode (type `!/admin` in chat)
+
 - System prompts toggle (show/hide system messages)
 - Conversation sidebar drawer (load saved session JSON files)
 - Export test case for benchmarking
@@ -247,13 +282,14 @@ examples/
 
 The app communicates with a UDIAgent backend:
 
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/v1/yac/completions` | POST | Send messages, receive tool calls |
-| `/v1/yac/examples` | GET | Fetch example prompts |
-| `/sessions/{filename}` | GET | Load saved conversation files |
+| Endpoint               | Method | Purpose                           |
+| ---------------------- | ------ | --------------------------------- |
+| `/v1/yac/completions`  | POST   | Send messages, receive tool calls |
+| `/v1/yac/examples`     | GET    | Fetch example prompts             |
+| `/sessions/{filename}` | GET    | Load saved conversation files     |
 
 Request body for completions:
+
 ```json
 {
   "model": "...",

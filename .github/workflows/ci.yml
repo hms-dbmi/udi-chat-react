@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # udi-toolkit is resolved via a relative alias to ../udi-grammar/src/components/dist/.
+      # Until #2 (publish udi-toolkit) is resolved, CI has no access to the sibling build
+      # artifact. We stub the alias target so lint, typecheck, and tests that don't import
+      # UDIVis runtime code still run. Tests that render UDIVis are excluded from CI for now.
+      - name: Stub udi-toolkit (temporary)
+        run: |
+          mkdir -p ../udi-grammar/src/components/dist
+          printf 'export const UDIVis = () => null;\n' > ../udi-grammar/src/components/dist/react.js
+          printf 'export {};\n' > ../udi-grammar/src/components/dist/index.js
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build (standalone)
+        run: pnpm build
+
+      - name: Build (library)
+        run: pnpm build:lib

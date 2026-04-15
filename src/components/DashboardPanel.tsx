@@ -1,5 +1,10 @@
 import { useMemo } from 'react';
-import { useDashboard, useSelections, useDashboardStore, useDataFilters } from '@/stores/UDIChatContext';
+import {
+  useDashboard,
+  useSelections,
+  useDashboardStore,
+  useDataFilters,
+} from '@/stores/UDIChatContext';
 import { DashboardCard } from './DashboardCard';
 import { WelcomeSplash } from './WelcomeSplash';
 import { FilterToolbar } from './FilterToolbar';

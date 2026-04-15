@@ -41,7 +41,10 @@ export function IntervalFilterComponent({
   const rangeMinMax = useMemo(() => {
     const domain = getDomainForField(entity, field);
     if (!domain || domain.type !== 'interval') return { min: 0, max: 100 };
-    return { min: (domain.domain as { min: number; max: number }).min, max: (domain.domain as { min: number; max: number }).max };
+    return {
+      min: (domain.domain as { min: number; max: number }).min,
+      max: (domain.domain as { min: number; max: number }).max,
+    };
   }, [getDomainForField, entity, field]);
 
   const storeRange = useMemo(() => {
@@ -103,8 +106,12 @@ export function IntervalFilterComponent({
     (val: string | null) => {
       if (!val) return;
       const newDomain = getDomainForField(entity, val);
-      const min = newDomain?.type === 'interval' ? (newDomain.domain as { min: number; max: number }).min : 0;
-      const max = newDomain?.type === 'interval' ? (newDomain.domain as { min: number; max: number }).max : 100;
+      const min =
+        newDomain?.type === 'interval' ? (newDomain.domain as { min: number; max: number }).min : 0;
+      const max =
+        newDomain?.type === 'interval'
+          ? (newDomain.domain as { min: number; max: number }).max
+          : 100;
       setDataSelection(filterKey, {
         ...dataSelection,
         selection: { [val]: [min, max] },
@@ -131,7 +138,9 @@ export function IntervalFilterComponent({
               </SelectTrigger>
               <SelectContent>
                 {entityNames.map((e) => (
-                  <SelectItem key={e} value={e}>{e}</SelectItem>
+                  <SelectItem key={e} value={e}>
+                    {e}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -141,7 +150,9 @@ export function IntervalFilterComponent({
               </SelectTrigger>
               <SelectContent>
                 {fieldOptions.map((f) => (
-                  <SelectItem key={f} value={f}>{f}</SelectItem>
+                  <SelectItem key={f} value={f}>
+                    {f}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>

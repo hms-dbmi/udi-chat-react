@@ -72,19 +72,15 @@ export function FilterToolbar() {
       return false;
     });
 
-    const allEntries = [
-      ...validExternalSelections,
-      ...Object.entries(internalDataSelections),
-    ];
+    const allEntries = [...validExternalSelections, ...Object.entries(internalDataSelections)];
 
     const result: ChipInfo[] = [];
     for (const [id, sel] of allEntries) {
       if (
         sel.selection == null ||
-        Object.values(sel.selection).every(
-          (v) => v == null || (Array.isArray(v) && v.length === 0),
-        )
-      ) continue;
+        Object.values(sel.selection).every((v) => v == null || (Array.isArray(v) && v.length === 0))
+      )
+        continue;
       const fields = formatSelectionFields(sel);
       for (const { label, value } of fields) {
         result.push({ id, dataSourceKey: sel.dataSourceKey, type: sel.type, label, value });

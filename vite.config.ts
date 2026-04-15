@@ -1,22 +1,24 @@
-import { defineConfig } from 'vite'
-import { resolve } from 'path'
-import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
-import dts from 'vite-plugin-dts'
+import { defineConfig } from 'vite';
+import { resolve } from 'path';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import dts from 'vite-plugin-dts';
 
-const udiToolkitRoot = resolve(__dirname, '../udi-grammar/src/components')
+const udiToolkitRoot = resolve(__dirname, '../udi-grammar/src/components');
 
 export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     tailwindcss(),
     ...(mode === 'lib'
-      ? [dts({
-          insertTypesEntry: true,
-          include: ['src'],
-          exclude: ['src/App.tsx', 'src/main.tsx'],
-          tsconfigPath: resolve(__dirname, 'tsconfig.app.json'),
-        })]
+      ? [
+          dts({
+            insertTypesEntry: true,
+            include: ['src'],
+            exclude: ['src/App.tsx', 'src/main.tsx'],
+            tsconfigPath: resolve(__dirname, 'tsconfig.app.json'),
+          }),
+        ]
       : []),
   ],
   resolve: {
@@ -56,4 +58,4 @@ export default defineConfig(({ mode }) => ({
           cssCodeSplit: false,
         }
       : {},
-}))
+}));

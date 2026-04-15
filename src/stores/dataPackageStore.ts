@@ -251,10 +251,7 @@ export function createDataPackageStore() {
 
 /** Set derived state from a parsed data package (shared by fetch and set paths).
  *  Does NOT set loading — the caller manages the loading lifecycle. */
-function applyDataPackage(
-  set: (partial: Partial<DataPackageState>) => void,
-  json: DataPackage,
-) {
+function applyDataPackage(set: (partial: Partial<DataPackageState>) => void, json: DataPackage) {
   set({
     dataPackage: json,
     sourceFields: computeSourceFields(json),
@@ -267,9 +264,7 @@ function applyDataPackage(
 }
 
 type SetFn = (
-  partial:
-    | Partial<DataPackageState>
-    | ((state: DataPackageState) => Partial<DataPackageState>),
+  partial: Partial<DataPackageState> | ((state: DataPackageState) => Partial<DataPackageState>),
 ) => void;
 
 /** Apply a batch of domains for one entity into the store. */
@@ -329,10 +324,9 @@ function loadDomainsViaWorker(set: SetFn, resources: ResourceInput[]): Promise<v
   return new Promise((resolve, reject) => {
     let worker: Worker;
     try {
-      worker = new Worker(
-        new URL('../workers/domainWorker.ts', import.meta.url),
-        { type: 'module' },
-      );
+      worker = new Worker(new URL('../workers/domainWorker.ts', import.meta.url), {
+        type: 'module',
+      });
     } catch (e) {
       reject(e);
       return;

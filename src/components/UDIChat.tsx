@@ -1,5 +1,16 @@
 import { useEffect, useState, useCallback } from 'react';
-import { UDIChatProvider, useConversation, useDataPackageStore, useDashboardStore, useDashboard, useDataPackage, useDataFiltersStore, useDataFilters, useMemoryBankStore, useGlobal } from '@/stores/UDIChatContext';
+import {
+  UDIChatProvider,
+  useConversation,
+  useDataPackageStore,
+  useDashboardStore,
+  useDashboard,
+  useDataPackage,
+  useDataFiltersStore,
+  useDataFilters,
+  useMemoryBankStore,
+  useGlobal,
+} from '@/stores/UDIChatContext';
 import { extractAllUdiSpecsFromMessage } from '@/stores/dashboardStore';
 import type { UDIGrammar } from 'udi-toolkit/react';
 import { ChatPanel } from './ChatPanel';
@@ -10,6 +21,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { QueryConfig } from '@/api/completions';
 import type { DataPackage, DataFieldDomain } from '@/types/dataPackage';
+import { validateConfig } from '@/utils/validateConfig';
 
 export interface UDIChatConfig {
   apiBaseUrl: string;
@@ -29,7 +41,16 @@ export interface UDIChatConfig {
   style?: React.CSSProperties;
 }
 
-function UDIChatInner({ apiBaseUrl, dataPackagePath, dataPackage: dataPackageProp, dataFieldDomains: dataFieldDomainsProp, fetchOptions, authToken, model, requireApiKey }: UDIChatConfig) {
+function UDIChatInner({
+  apiBaseUrl,
+  dataPackagePath,
+  dataPackage: dataPackageProp,
+  dataFieldDomains: dataFieldDomainsProp,
+  fetchOptions,
+  authToken,
+  model,
+  requireApiKey,
+}: UDIChatConfig) {
   const dataPackageStore = useDataPackageStore();
   const dashboardStore = useDashboardStore();
   const dataFiltersStore = useDataFiltersStore();
@@ -39,13 +60,19 @@ function UDIChatInner({ apiBaseUrl, dataPackagePath, dataPackage: dataPackagePro
   const sourceFields = useDataPackage((s) => s.sourceFields);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [openAiKey, setOpenAiKey] = useState<string | null>(() => {
-    try { return localStorage.getItem('udi-chat-api-key'); } catch { return null; }
+    try {
+      return localStorage.getItem('udi-chat-api-key');
+    } catch {
+      return null;
+    }
   });
 
   // Load data package on mount
   useEffect(() => {
     if (dataPackageProp) {
-      dataPackageStore.getState().setDataPackage(dataPackageProp, dataFieldDomainsProp, fetchOptions);
+      dataPackageStore
+        .getState()
+        .setDataPackage(dataPackageProp, dataFieldDomainsProp, fetchOptions);
     } else if (dataPackagePath) {
       dataPackageStore.getState().fetchDataPackage(dataPackagePath, fetchOptions);
     }
@@ -76,7 +103,14 @@ function UDIChatInner({ apiBaseUrl, dataPackagePath, dataPackage: dataPackagePro
           userPromptIndex--;
         }
         const userPrompt = userPromptIndex >= 0 ? messages[userPromptIndex].content : '';
-        batch.push({ index: i, toolCallIndex, spec: spec as UDIGrammar, userPrompt, sourceFields, title });
+        batch.push({
+          index: i,
+          toolCallIndex,
+          spec: spec as UDIGrammar,
+          userPrompt,
+          sourceFields,
+          title,
+        });
       }
     }
     if (batch.length > 0) {
@@ -106,12 +140,20 @@ function UDIChatInner({ apiBaseUrl, dataPackagePath, dataPackage: dataPackagePro
 
   const handleSetApiKey = useCallback((key: string) => {
     setOpenAiKey(key);
-    try { localStorage.setItem('udi-chat-api-key', key); } catch { /* noop */ }
+    try {
+      localStorage.setItem('udi-chat-api-key', key);
+    } catch {
+      /* noop */
+    }
   }, []);
 
   const handleClearApiKey = useCallback(() => {
     setOpenAiKey(null);
-    try { localStorage.removeItem('udi-chat-api-key'); } catch { /* noop */ }
+    try {
+      localStorage.removeItem('udi-chat-api-key');
+    } catch {
+      /* noop */
+    }
   }, []);
 
   const queryConfig: QueryConfig = {
@@ -150,16 +192,26 @@ function UDIChatInner({ apiBaseUrl, dataPackagePath, dataPackage: dataPackagePro
   );
 }
 
+function UDIChatValidated(props: UDIChatConfig) {
+  // Throws on bad config; caught by the surrounding ErrorBoundary so the
+  // consumer sees a structured error instead of an opaque crash deep in
+  // Arquero or fetch.
+  validateConfig(props);
+  return (
+    <TooltipProvider>
+      <UDIChatProvider>
+        <div className={cn('h-full w-full', props.className)} style={props.style}>
+          <UDIChatInner {...props} />
+        </div>
+      </UDIChatProvider>
+    </TooltipProvider>
+  );
+}
+
 export function UDIChat(props: UDIChatConfig) {
   return (
     <ErrorBoundary>
-      <TooltipProvider>
-        <UDIChatProvider>
-          <div className={cn('h-full w-full', props.className)} style={props.style}>
-            <UDIChatInner {...props} />
-          </div>
-        </UDIChatProvider>
-      </TooltipProvider>
+      <UDIChatValidated {...props} />
     </ErrorBoundary>
   );
 }

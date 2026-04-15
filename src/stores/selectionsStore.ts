@@ -23,10 +23,7 @@ export function createSelectionsStore() {
             delete next[key];
             changed = true;
           }
-        } else if (
-          !(key in current) ||
-          JSON.stringify(current[key]) !== JSON.stringify(val)
-        ) {
+        } else if (!(key in current) || JSON.stringify(current[key]) !== JSON.stringify(val)) {
           next[key] = val;
           changed = true;
         }

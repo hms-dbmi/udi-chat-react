@@ -14,8 +14,7 @@ export function createConversationStore() {
   return createStore<ConversationState>()((set, get) => ({
     messages: [],
 
-    addMessage: (message) =>
-      set((state) => ({ messages: [...state.messages, message] })),
+    addMessage: (message) => set((state) => ({ messages: [...state.messages, message] })),
 
     newConversation: () => set({ messages: [] }),
 

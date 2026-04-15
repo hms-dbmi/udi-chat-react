@@ -10,7 +10,11 @@ interface MessageListProps {
   onSelectSuggestion?: (suggestion: string) => void;
 }
 
-export function MessageList({ isLoading, showSystemPrompts, onSelectSuggestion }: MessageListProps) {
+export function MessageList({
+  isLoading,
+  showSystemPrompts,
+  onSelectSuggestion,
+}: MessageListProps) {
   const messages = useConversation((s) => s.messages);
   const debugMode = useGlobal((s) => s.debugMode);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -19,9 +23,7 @@ export function MessageList({ isLoading, showSystemPrompts, onSelectSuggestion }
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length, isLoading]);
 
-  const displayed = messages.filter(
-    (m) => m.role !== 'system' || (debugMode && showSystemPrompts),
-  );
+  const displayed = messages.filter((m) => m.role !== 'system' || (debugMode && showSystemPrompts));
 
   return (
     <ScrollArea className="flex-1 min-h-0 px-3">

@@ -22,8 +22,7 @@ export function ClarifyVariable({
     selections[vIdx] === `${fieldName} (${entity})`;
 
   const allSelected =
-    ambiguous_variables.length > 0 &&
-    ambiguous_variables.every((_, idx) => idx in selections);
+    ambiguous_variables.length > 0 && ambiguous_variables.every((_, idx) => idx in selections);
 
   const trySubmit = useCallback(
     (nextSelections: Record<number, string>) => {
@@ -73,7 +72,9 @@ export function ClarifyVariable({
             {variable.candidates.map((candidate, cIdx) => (
               <Button
                 key={cIdx}
-                variant={isSelected(vIdx, candidate.field_name, candidate.entity) ? 'default' : 'outline'}
+                variant={
+                  isSelected(vIdx, candidate.field_name, candidate.entity) ? 'default' : 'outline'
+                }
                 size="sm"
                 disabled={submitted}
                 className="h-auto py-1.5 px-2.5 text-left"

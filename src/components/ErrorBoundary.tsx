@@ -51,9 +51,7 @@ export class ErrorBoundary extends Component<Props, State> {
       <div className="flex flex-col items-center justify-center h-full p-6 gap-4">
         <div className="text-center">
           <h2 className="text-sm font-semibold mb-1">Something went wrong</h2>
-          <p className="text-xs text-muted-foreground">
-            {this.state.error.message}
-          </p>
+          <p className="text-xs text-muted-foreground">{this.state.error.message}</p>
         </div>
         <pre className="w-full max-h-[300px] overflow-auto rounded-md bg-muted p-3 text-xs font-mono whitespace-pre-wrap break-words">
           {this.getErrorText()}

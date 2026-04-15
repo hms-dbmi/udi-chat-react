@@ -81,6 +81,10 @@ export function evaluateStructuredText(
   const segments: StructuredTextSegment[] = [];
   let lastIndex = 0;
 
+  // FUNC_PATTERN is a module-level /g regex; matchAll reads its lastIndex.
+  // Reset before iterating so prior calls (including hasStructuredReferences,
+  // which uses .test()) can't leak state into this match.
+  FUNC_PATTERN.lastIndex = 0;
   for (const match of text.matchAll(FUNC_PATTERN)) {
     const [fullMatch, funcName, rawArgs] = match;
     const matchIndex = match.index!;
@@ -114,5 +118,9 @@ export function evaluateStructuredText(
 
 export function hasStructuredReferences(text: string): boolean {
   FUNC_PATTERN.lastIndex = 0;
-  return FUNC_PATTERN.test(text);
+  const result = FUNC_PATTERN.test(text);
+  // .test() advances lastIndex on a /g regex; reset so we don't poison the
+  // shared FUNC_PATTERN state for later evaluateStructuredText calls.
+  FUNC_PATTERN.lastIndex = 0;
+  return result;
 }

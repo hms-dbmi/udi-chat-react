@@ -24,7 +24,10 @@ import type { DataFieldDomain } from '@/types/dataPackage';
 
 // Worker global scope — `self` is typed via DOM lib; the cast avoids
 // needing a separate tsconfig with the WebWorker lib.
-const workerSelf = self as unknown as { onmessage: ((event: MessageEvent<WorkerMessage>) => void) | null; postMessage: (msg: WorkerResponse) => void };
+const workerSelf = self as unknown as {
+  onmessage: ((event: MessageEvent<WorkerMessage>) => void) | null;
+  postMessage: (msg: WorkerResponse) => void;
+};
 
 workerSelf.onmessage = async (event: MessageEvent<WorkerMessage>) => {
   const msg = event.data;

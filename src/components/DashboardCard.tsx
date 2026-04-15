@@ -3,7 +3,18 @@ import { UDIVis } from 'udi-toolkit/react';
 import type { DataSelections } from 'udi-toolkit/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { X, Settings2, Maximize2, Minimize2, Code2, Copy, Check, Table2, BarChart3, ExternalLink } from 'lucide-react';
+import {
+  X,
+  Settings2,
+  Maximize2,
+  Minimize2,
+  Code2,
+  Copy,
+  Check,
+  Table2,
+  BarChart3,
+  ExternalLink,
+} from 'lucide-react';
 import { compressToEncodedURIComponent } from 'lz-string';
 import {
   Dialog,
@@ -13,7 +24,13 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import type { PinnedVisualization } from '@/stores/dashboardStore';
-import { useDashboard, useDashboardStore, useSelectionsStore, useMemoryBankStore, useDataPackage } from '@/stores/UDIChatContext';
+import {
+  useDashboard,
+  useDashboardStore,
+  useSelectionsStore,
+  useMemoryBankStore,
+  useDataPackage,
+} from '@/stores/UDIChatContext';
 import { VizTweakComponent } from './VizTweakComponent';
 import { cn } from '@/lib/utils';
 
@@ -113,9 +130,7 @@ export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
       onMouseLeave={() => dashboardStore.getState().setHoveredVisualizationIndex(null)}
     >
       <CardHeader className="p-2 pb-0 flex-row items-center justify-between">
-        <span className="text-xs font-medium truncate pr-2">
-          {viz.title ?? viz.userPrompt}
-        </span>
+        <span className="text-xs font-medium truncate pr-2">{viz.title ?? viz.userPrompt}</span>
         <div className="flex items-center gap-0.5 shrink-0">
           <Button
             variant="ghost"
@@ -163,7 +178,11 @@ export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
                     onClick={handleCopySpec}
                     title="Copy spec"
                   >
-                    {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+                    {copied ? (
+                      <Check className="h-3.5 w-3.5 text-green-600" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" />
+                    )}
                   </Button>
                   <Button
                     variant="ghost"
@@ -181,12 +200,7 @@ export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
               </div>
             </DialogContent>
           </Dialog>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={handleClose}
-          >
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleClose}>
             <X className="h-3 w-3" />
           </Button>
         </div>

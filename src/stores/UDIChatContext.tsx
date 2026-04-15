@@ -33,11 +33,7 @@ export function UDIChatProvider({ children }: { children: ReactNode }) {
       global: createGlobalStore(),
     };
   }
-  return (
-    <UDIChatContext.Provider value={storesRef.current}>
-      {children}
-    </UDIChatContext.Provider>
-  );
+  return <UDIChatContext.Provider value={storesRef.current}>{children}</UDIChatContext.Provider>;
 }
 
 function useStores() {
