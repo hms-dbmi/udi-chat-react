@@ -13,7 +13,7 @@ import {
   useDataPackageStore,
 } from '@/stores/UDIChatContext';
 import type { UDIGrammar } from 'udi-toolkit/react';
-import { setMappingFieldByEncoding } from '@/utils/specMutations';
+import { setMappingFieldByEncoding, collectLockedFields } from '@/utils/specMutations';
 
 interface TweakableParam {
   field: string;
@@ -40,6 +40,12 @@ export function VizTweakComponent({ spec, messageIndex, toolCallIndex }: VizTwea
     return src?.name ?? null;
   }, [spec.source]);
 
+  // Fields referenced by schema-defining transformations (groupby, binby,
+  // rollup.field, kde, join.on). Swapping a mapping that references one of
+  // these would leave the pipeline pointing at the old field, silently
+  // breaking the chart — so such mappings are hidden from the tweak UI.
+  const lockedFields = useMemo(() => collectLockedFields(spec), [spec]);
+
   const tweakableParams = useMemo<TweakableParam[]>(() => {
     if (!spec.representation) return [];
     const representations = Array.isArray(spec.representation)
@@ -61,6 +67,7 @@ export function VizTweakComponent({ spec, messageIndex, toolCallIndex }: VizTwea
     return allMappings
       .filter((m) => m?.field && m?.encoding && m?.type)
       .filter((m) => entityFields.includes(m.field))
+      .filter((m) => !lockedFields.has(m.field))
       .filter((m) => {
         if (seen.has(m.encoding)) return false;
         seen.add(m.encoding);
@@ -78,7 +85,14 @@ export function VizTweakComponent({ spec, messageIndex, toolCallIndex }: VizTwea
               ? (categoricalSourceFields?.[sourceName] ?? [])
               : [],
       }));
-  }, [spec, sourceName, sourceFields, quantitativeSourceFields, categoricalSourceFields]);
+  }, [
+    spec,
+    sourceName,
+    sourceFields,
+    quantitativeSourceFields,
+    categoricalSourceFields,
+    lockedFields,
+  ]);
 
   const handleFieldChange = useCallback(
     (encoding: string, newField: string | null) => {
