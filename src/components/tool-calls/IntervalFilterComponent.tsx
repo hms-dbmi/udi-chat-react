@@ -121,7 +121,7 @@ export function IntervalFilterComponent({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-1.5 text-sm flex-wrap">
+      <div className="flex items-center gap-1.5 text-sm">
         {tweakable ? (
           <>
             <span className="text-muted-foreground">Filtering</span>
@@ -145,21 +145,17 @@ export function IntervalFilterComponent({
                 ))}
               </SelectContent>
             </Select>
-            <span className="text-muted-foreground">:</span>
-            <span className="font-semibold">{minText}</span>
-            <span className="text-muted-foreground">to</span>
-            <span className="font-semibold">{maxText}</span>
           </>
         ) : (
-          <>
-            <span className="text-muted-foreground">
-              Filtering {entity} {field}:
-            </span>
-            <span className="font-semibold">{minText}</span>
-            <span className="text-muted-foreground">to</span>
-            <span className="font-semibold">{maxText}</span>
-          </>
+          <span className="text-muted-foreground">
+            Filtering {entity} {field}
+          </span>
         )}
+      </div>
+      <div className="flex items-center gap-1.5 text-sm">
+        <span className="font-semibold">{minText}</span>
+        <span className="text-muted-foreground">to</span>
+        <span className="font-semibold">{maxText}</span>
         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleReset}>
           <RotateCcw className="h-3 w-3" />
         </Button>
