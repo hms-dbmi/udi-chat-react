@@ -18,21 +18,36 @@ export interface DataFieldDomain {
 export interface DataPackageResource {
   name: string;
   path: string;
-  'udi:row_count'?: number;
+  encoding: string;
+  format: string;
+  mediatype: string;
   schema: {
     fields: Array<{
       name: string;
       description?: string;
+      type?: string;
+      'udi:cardinality'?: number;
       'udi:data_type'?: string;
+      'udi:overlapping_fields'?: string[] | 'all';
+      'udi:unique'?: boolean;
     }>;
+    primaryKey?: string[];
     foreignKeys?: Array<{
       fields: string[];
+      'udi:cardinality'?: {
+        from: 'one' | 'many';
+        to: 'one' | 'many';
+      }
       reference: {
         resource: string;
         fields: string[];
       };
     }>;
   };
+  scheme: string;
+  type: string;
+  'udi:column_count'?: number;
+  'udi:row_count'?: number;
 }
 
 export interface DataPackage {
