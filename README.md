@@ -228,62 +228,121 @@ See [`src/data/hubmapRemote.ts`](src/data/hubmapRemote.ts) for the canonical inl
 
 ## Project Structure
 
+The codebase follows a [bulletproof-react](https://github.com/alan2207/bulletproof-react)-style layout. Module boundaries are enforced by [`eslint-plugin-project-structure`](https://www.npmjs.com/package/eslint-plugin-project-structure) (see [eslint.config.js](eslint.config.js)). For the reasoning behind the layout and a guide to working within it, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ```
 src/
-  index.ts                    # Library entry: exports UDIChat + UDIChatConfig
-  App.tsx                     # Standalone app entry
-  components/
-    UDIChat.tsx               # Root component (provider + layout)
-    ChatPanel.tsx             # Chat sidebar (header, messages, input)
-    ChatInput.tsx             # Message input with submit
-    MessageList.tsx           # Message history with auto-scroll
-    MessageBubble.tsx         # Individual message with tool call tabs
-    ToolCallRenderer.tsx      # Dispatches tool calls to renderers
+  index.ts                          # Library entry: exports UDIChat + UDIChatConfig
+  index.css                         # Global Tailwind base + custom CSS
+  env.d.ts                          # Vite client types
+
+  app/                              # Composition root (allowed to reach into any feature)
+    main.tsx                        # Vite app bootstrap
+    App.tsx                         # Standalone app entry (inline HuBMAP package)
+    UDIChat.tsx                     # Root component (provider + layout)
+    UDIChatConfig.ts                # UDIChatConfig type (extracted to break circular)
+    UDIChatContext.tsx              # Provider + hooks wiring all Zustand stores
+    ErrorBoundary.tsx               # React error boundary
+    validateConfig.ts (+ .test.ts)  # Runtime validation for UDIChatConfig
+
+  features/
+    chat/
+      index.ts                      # Public barrel — cross-feature consumers import only from here
+      api/
+        completions.ts              # POST /v1/yac/completions client + QueryConfig type
+      components/
+        ChatPanel.tsx               # Slim orchestrator (~85 lines)
+        ChatHeaderBar.tsx           # Toolbar — owns debugMode subscription
+        DebugToggleSection.tsx      # System-prompt toggle — owns debugMode + messages
+        ClosedVisualizationsPanel.tsx  # Recently-closed viz strip — owns memoryBank
+        ChatInput.tsx               # Message input
+        MessageList.tsx             # Message history with auto-scroll
+        MessageBubble.tsx           # Single message + tool call tabs
+        ConversationList.tsx        # Sidebar with saved session files
+        ApiKeyInput.tsx             # OpenAI API key input
+      hooks/
+        useChatApi.ts               # LLM API integration hook
+        useExamplePrompts.ts        # /v1/yac/examples fetch
+        useResetHandlers.ts         # Bundled "reset everything" action
+        useDebugExports.ts          # Debug-mode export buttons (save / test case / data)
+      stores/
+        conversationStore.ts        # Chat messages, save/load/export
+
+    dashboard/
+      index.ts                      # Public barrel
+      components/
+        DashboardPanel.tsx          # Dashboard layout (counts, filters, viz grid)
+        DashboardCard.tsx           # Single pinned viz (chart, toolbar, tweak, spec)
+        DataCounts.tsx              # Per-entity row counts (total + filtered)
+        FilterToolbar.tsx           # Active filter chips
+        DownloadButton.tsx          # CSV/manifest download dropdown
+        VizTweakComponent.tsx       # Field encoding swap dropdowns
+        VizTweakComponent.types.ts  # TweakableParam, LayerLike, MappingLike
+        WelcomeSplash.tsx           # Empty dashboard placeholder
+      stores/
+        dashboardStore.ts           # Pinned vizzes, interactivity, expand/table/hover
+        dataFiltersStore.ts         # Interval/point filter state, message sync
+        selectionsStore.ts          # Cross-viz brush selection coordination
+        memoryBankStore.ts          # Closed visualization restoration
+
+    data-package/
+      index.ts                      # Public barrel
+      types.ts                      # Web Worker protocol types
+      stores/
+        dataPackageStore.ts         # Data schema, field domains, entity relationships
+      utils/
+        joinDataPath.ts             # Path joining for local + remote data URLs
+        structuredTextParser.ts     # Template function evaluation for explanations
+      workers/
+        domainWorker.ts             # Off-main-thread domain computation
+
     tool-calls/
-      VisualizationCard.tsx   # UDIVis preview (chat) / pinned badge
-      FilterComponent.tsx     # Filter dispatcher (interval/point)
-      IntervalFilterComponent.tsx
-      PointFilterComponent.tsx
-      FreeTextExplain.tsx     # Markdown explanation with structured text
-      RebuffNotice.tsx        # Rejection with suggestion buttons
-      ClarifyVariable.tsx     # Field disambiguation UI
-    DashboardPanel.tsx        # Dashboard layout (counts, filters, viz grid)
-    DashboardCard.tsx         # Single pinned viz (chart, toolbar, tweak, spec)
-    FilterToolbar.tsx         # Active filter chips
-    DataCounts.tsx            # Per-entity row counts (total + filtered)
-    DownloadButton.tsx        # CSV/manifest download dropdown
-    VizTweakComponent.tsx     # Field encoding swap dropdowns
-    ConversationList.tsx      # Sidebar with saved session files
-    WelcomeSplash.tsx         # Empty dashboard placeholder
-    ApiKeyInput.tsx           # OpenAI API key input
-    ErrorBoundary.tsx         # React error boundary
-    ui/                       # shadcn/ui primitives
+      index.ts                      # Public barrel
+      types.ts                      # Args for each tool call type
+      components/
+        ToolCallRenderer.tsx        # Dispatches tool calls to renderers
+        VisualizationCard.tsx       # UDIVis preview (chat) / pinned badge
+        FilterComponent.tsx         # Filter dispatcher (interval/point)
+        IntervalFilterComponent.tsx
+        PointFilterComponent.tsx
+        FreeTextExplain.tsx         # Markdown explanation with structured text
+        RebuffNotice.tsx            # Rejection with suggestion buttons
+        ClarifyVariable.tsx         # Field disambiguation UI
+
+  components/
+    ui/                             # shadcn/ui primitives (badge, button, dialog, …)
+
   stores/
-    UDIChatContext.tsx         # React Context provider + hooks for all stores
-    conversationStore.ts      # Chat messages, save/load/export
-    dashboardStore.ts         # Pinned vizzes, interactivity, filters, expand/table/hover
-    dataPackageStore.ts       # Data schema, field domains, entity relationships
-    dataFiltersStore.ts       # Interval/point filter state, message sync
-    selectionsStore.ts        # Cross-viz brush selection coordination
-    memoryBankStore.ts        # Closed visualization restoration
-    globalStore.ts            # Debug mode, production flag
-  hooks/
-    useChatApi.ts             # LLM API integration hook
-  api/
-    completions.ts            # POST /v1/yac/completions client
+    globalStore.ts                  # Truly cross-feature state (debug mode)
+
   types/
-    messages.ts               # Message, ToolCall, FlatToolCall
-    toolCallArgs.ts           # Args for each tool call type
-    dataPackage.ts            # DataPackage, DataFieldDomain, etc.
-  utils/
-    structuredTextParser.ts   # Template function evaluation for explanations
-    joinDataPath.ts           # Path joining for local + remote data URLs
-    validateConfig.ts         # Runtime validation for UDIChatConfig
-  data/
-    hubmapRemote.ts           # Inline DataPackage targeting the live HuBMAP Portal API (default for App.tsx)
+    messages.ts                     # Message, ToolCall, FlatToolCall (cross-feature)
+    dataPackage.ts                  # DataPackage, DataFieldDomain, etc. (cross-feature)
+
   lib/
-    utils.ts                  # cn() helper (clsx + tailwind-merge)
+    utils.ts                        # cn() helper (clsx + tailwind-merge)
+
+  utils/
+    specMutations.ts                # Pure UDI grammar helpers
+
+  data/
+    hubmapRemote.ts                 # Inline DataPackage targeting the live HuBMAP Portal API
 ```
+
+### Module boundaries
+
+The `project-structure/independent-modules` rule enforces these import boundaries:
+
+| From                  | Can import                                                                                       |
+| --------------------- | ------------------------------------------------------------------------------------------------ |
+| `src/features/X/**`   | own family, **other features' `index.ts` only**, `src/{utils,types,lib,stores,components/ui}/**` |
+| `src/app/**`          | any feature internal, all shared layers                                                          |
+| `src/components/ui/`  | sibling UI, `src/lib/`                                                                           |
+| `src/utils/`          | `src/{utils,types,lib,stores}/`, feature barrels                                                 |
+| `src/{types,lib}/`    | shared layers only                                                                               |
+| `src/stores/`         | `src/{stores,types,lib}/`                                                                        |
+
+Cross-feature imports must go through the feature's `index.ts` barrel — direct paths like `@/features/dashboard/stores/dataFiltersStore` from another feature will fail lint.
 
 ## API Integration
 
