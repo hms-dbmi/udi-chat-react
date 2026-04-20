@@ -10,7 +10,7 @@ import type {
 import { joinDataPath } from '@/features/data-package';
 import type { ResourceInput } from '../types';
 
-export type LoadingPhase = 'idle' | 'fetching' | 'domains' | 'ready';
+export type LoadingPhase = 'idle' | 'fetching' | 'domains' | 'ready' | 'error';
 
 export interface DataPackageState {
   dataPackage: DataPackage | null;
@@ -198,6 +198,9 @@ export function createDataPackageStore() {
       set({ loadingPhase: 'fetching', error: null });
       try {
         const response = await fetch(path, fetchOptions);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status} ${response.statusText}`);
+        }
         const json = (await response.json()) as DataPackage;
         if (json.resources && Array.isArray(json.resources)) {
           json.resources = json.resources.filter(
@@ -207,10 +210,9 @@ export function createDataPackageStore() {
         applyDataPackage(set, json);
         set({ loadingPhase: 'domains' });
         await loadDomainsFromCSVs(set, json, fetchOptions);
-      } catch (e) {
-        set({ error: String(e), loadingPhase: 'idle' });
-      } finally {
         set({ loadingPhase: 'ready' });
+      } catch (e) {
+        set({ error: String(e), loadingPhase: 'error' });
       }
     },
 
@@ -240,10 +242,9 @@ export function createDataPackageStore() {
 
         set({ loadingPhase: 'domains' });
         await loadDomainsFromCSVs(set, filtered, fetchOptions);
-      } catch (e) {
-        set({ error: String(e), loadingPhase: 'idle' });
-      } finally {
         set({ loadingPhase: 'ready' });
+      } catch (e) {
+        set({ error: String(e), loadingPhase: 'error' });
       }
     },
   }));

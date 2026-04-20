@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
-import { Users, FlaskConical, Table2, Loader2 } from 'lucide-react';
+import { Users, FlaskConical, Table2, Loader2, AlertCircle } from 'lucide-react';
 import { queryData } from 'udi-toolkit/react';
 import type { QueryDataSpec } from 'udi-toolkit/react';
 import {
@@ -36,6 +36,7 @@ export function DataCounts() {
   const dataPackage = useDataPackage((s) => s.dataPackage);
   const entityNames = useDataPackage((s) => s.entityNames);
   const loadingPhase = useDataPackage((s) => s.loadingPhase);
+  const loadError = useDataPackage((s) => s.error);
   const dataSelections = useDataFilters((s) => s.dataSelections);
   const vizSelections = useSelections((s) => s.selections);
   const pinnedVisualizations = useDashboard((s) => s.pinnedVisualizations);
@@ -245,6 +246,19 @@ export function DataCounts() {
       }
     };
   }, [domainsReady, exportSpecs, vizSelections, dataSelections, dataPackageStore]);
+
+  // Surface DataPackage load failures instead of silently rendering nothing.
+  if (loadingPhase === 'error') {
+    return (
+      <div
+        className="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 bg-destructive/5 px-2.5 py-1.5 text-xs text-destructive"
+        title={loadError ?? undefined}
+      >
+        <AlertCircle className="h-4 w-4 shrink-0" />
+        <span>Couldn't load data package{loadError ? `: ${loadError}` : '.'}</span>
+      </div>
+    );
+  }
 
   // Skeleton placeholders while fetching the data package manifest
   if (loadingPhase === 'fetching' || loadingPhase === 'idle') {
