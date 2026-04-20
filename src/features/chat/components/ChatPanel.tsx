@@ -37,15 +37,21 @@ export function ChatPanel({
   const { handleReset } = useResetHandlers();
   const [showSystemPrompts, setShowSystemPrompts] = useState(false);
 
+  // Single guarded entry point for every send path (ChatInput, example
+  // prompts in ChatHeaderBar, suggested follow-ups in MessageList). Until
+  // the data package is fully loaded, the LLM can't inspect data domains
+  // or dispatch visualization tool calls, so we block the send entirely
+  // instead of letting a half-initialized request go through.
   const handleSend = useCallback(
     (text: string) => {
       if (text.trim() === '!/admin') {
         globalStore.getState().toggleDebugMode();
         return;
       }
+      if (!dataReady) return;
       sendMessage(text);
     },
-    [sendMessage, globalStore],
+    [sendMessage, globalStore, dataReady],
   );
 
   return (
@@ -57,7 +63,7 @@ export function ChatPanel({
         showDrawerToggle={showDrawerToggle}
         onToggleDrawer={onToggleDrawer}
         onReset={handleReset}
-        onExampleClick={sendMessage}
+        onExampleClick={handleSend}
         isLoading={isLoading}
       />
       <Separator />
@@ -68,7 +74,7 @@ export function ChatPanel({
       <MessageList
         isLoading={isLoading}
         showSystemPrompts={showSystemPrompts}
-        onSelectSuggestion={sendMessage}
+        onSelectSuggestion={handleSend}
       />
       {error && (
         <div className="px-3 py-1">
