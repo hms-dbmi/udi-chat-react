@@ -30,6 +30,7 @@ import {
   useSelectionsStore,
   useMemoryBankStore,
   useDataPackage,
+  useDataFiltersStore,
 } from '@/app/UDIChatContext';
 import { VizTweakComponent } from './VizTweakComponent';
 import { cn } from '@/lib/utils';
@@ -43,6 +44,7 @@ interface DashboardCardProps {
 export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
   const dashboardStore = useDashboardStore();
   const selectionsStore = useSelectionsStore();
+  const dataFiltersStore = useDataFiltersStore();
   const memoryBankStore = useMemoryBankStore();
   const sourceResolver = useDataPackage((s) => s.sourceResolver);
   const isExpanded = useDashboard((s) => s.isExpanded(vizKey));
@@ -85,14 +87,30 @@ export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
   const handleSelectionChange = useCallback(
     (newSelections: DataSelections) => {
       const plain = JSON.parse(JSON.stringify(newSelections)) as DataSelections;
-      // Brushes propagate through selectionsStore only. We intentionally do
-      // NOT write them into dataFiltersStore.internalDataSelections anymore,
-      // so brushes don't appear as filter chips in the toolbar. Cross-chart
-      // filtering still works via the shared Pinia DataSourcesStore +
-      // named-filter entries in each viz's interactiveSpec.transformation.
       selectionsStore.getState().updateSelections(plain);
+      // Mirror this viz's brush into dataFiltersStore so it appears as a chip
+      // in the FilterToolbar. Key with a `viz-brush-` prefix so it stays
+      // distinct from LLM-originated `message-filter-*` entries and from
+      // other internalDataSelections. Cross-chart filtering still works via
+      // the Pinia DataSourcesStore + named-filter entries in each viz's
+      // interactiveSpec.transformation — this mirror is display-only.
+      const own = plain[viz.uuid];
+      const brushKey = `viz-brush-${viz.uuid}`;
+      const mirrorValue =
+        own && own.selection
+          ? {
+              dataSourceKey: own.dataSourceKey,
+              type: own.type as 'interval' | 'point',
+              selection: own.selection as Record<string, unknown[]>,
+            }
+          : {
+              dataSourceKey: '',
+              type: 'interval' as const,
+              selection: {} as Record<string, unknown[]>,
+            };
+      dataFiltersStore.getState().updateInternalDataSelections({ [brushKey]: mirrorValue });
     },
-    [selectionsStore],
+    [selectionsStore, dataFiltersStore, viz.uuid],
   );
 
   const [showTweak, setShowTweak] = useState(false);

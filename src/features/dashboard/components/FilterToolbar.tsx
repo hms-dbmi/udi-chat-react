@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useDataFilters, useDataPackageStore } from '@/app/UDIChatContext';
+import { useDataFilters, useDataPackageStore, useSelectionsStore } from '@/app/UDIChatContext';
 import type { DataSelection } from '@/features/dashboard';
 
 interface ChipInfo {
@@ -37,11 +37,26 @@ function formatSelectionFields(sel: DataSelection): { label: string; value: stri
   return results;
 }
 
+const BRUSH_KEY_PREFIX = 'viz-brush-';
+
 export function FilterToolbar() {
   const dataPackageStore = useDataPackageStore();
+  const selectionsStore = useSelectionsStore();
   const dataSelections = useDataFilters((s) => s.dataSelections);
   const internalDataSelections = useDataFilters((s) => s.internalDataSelections);
   const clearFilter = useDataFilters((s) => s.clearFilter);
+
+  const handleClearChip = (chipId: string) => {
+    // Brush chips are mirrored from selectionsStore; the chart's visible
+    // brush is authoritative, so clear it there too. Setting selection to
+    // null makes selectionsStore remove the entry.
+    if (chipId.startsWith(BRUSH_KEY_PREFIX)) {
+      const uuid = chipId.slice(BRUSH_KEY_PREFIX.length);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      selectionsStore.getState().updateSelections({ [uuid]: { selection: null } as any });
+    }
+    clearFilter(chipId);
+  };
 
   const chips = useMemo<ChipInfo[]>(() => {
     const validate = {
@@ -105,7 +120,7 @@ export function FilterToolbar() {
             variant="ghost"
             size="icon"
             className="absolute -top-1.5 -right-1.5 z-10 h-4 w-4 rounded-full border bg-background shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={() => clearFilter(chip.id)}
+            onClick={() => handleClearChip(chip.id)}
           >
             <X className="h-2.5 w-2.5" />
           </Button>
