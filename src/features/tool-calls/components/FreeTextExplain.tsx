@@ -1,8 +1,13 @@
-import { useMemo } from 'react';
+import { Fragment, useMemo } from 'react';
 import Markdown, { type Components } from 'react-markdown';
 import type { FreeTextExplainArgs, TextSegment } from '../types';
 import { useDataPackageStore } from '@/app/UDIChatContext';
-import { evaluateStructuredText, hasStructuredReferences } from '@/features/data-package';
+import {
+  evaluateStructuredText,
+  hasStructuredReferences,
+  type StructuredTextSegment,
+} from '@/features/data-package';
+import { FieldListChip } from './FieldListChip';
 
 function segmentsToMarkdown(segments: TextSegment[]): string {
   return segments
@@ -37,22 +42,51 @@ const markdownComponents: Components = {
   ),
 };
 
+function MarkdownBlock({ children }: { children: string }) {
+  return <Markdown components={markdownComponents}>{children}</Markdown>;
+}
+
+function renderStructuredSegments(segments: StructuredTextSegment[]) {
+  // Coalesce contiguous text/value segments into a single Markdown render so
+  // markdown spans (bold, links, lists) survive across them. Break the run
+  // when a field_list segment appears — it renders as its own block widget.
+  const nodes: Array<{ key: string; node: React.ReactNode }> = [];
+  let buffer = '';
+  let bufferIndex = 0;
+  const flush = () => {
+    if (!buffer) return;
+    nodes.push({ key: `md-${bufferIndex}`, node: <MarkdownBlock>{buffer}</MarkdownBlock> });
+    buffer = '';
+  };
+  segments.forEach((seg, i) => {
+    if (seg.type === 'text') {
+      buffer += seg.content;
+    } else if (seg.type === 'value') {
+      buffer += `**${seg.content}**`;
+    } else {
+      flush();
+      bufferIndex = i + 1;
+      nodes.push({
+        key: `fl-${i}`,
+        node: <FieldListChip entity={seg.entity} fields={seg.fields} />,
+      });
+    }
+  });
+  flush();
+  return nodes.map(({ key, node }) => <Fragment key={key}>{node}</Fragment>);
+}
+
 export function FreeTextExplain({ text, has_structured_elements }: FreeTextExplainArgs) {
   const dataPackageStore = useDataPackageStore();
 
-  const md = useMemo(() => {
-    let raw = segmentsToMarkdown(text);
+  const rendered = useMemo(() => {
+    const raw = segmentsToMarkdown(text);
     if (has_structured_elements && hasStructuredReferences(raw)) {
       const dpState = dataPackageStore.getState();
-      const segments = evaluateStructuredText(raw, dpState);
-      raw = segments.map((s) => (s.type === 'value' ? `**${s.content}**` : s.content)).join('');
+      return renderStructuredSegments(evaluateStructuredText(raw, dpState));
     }
-    return raw;
+    return <MarkdownBlock>{raw}</MarkdownBlock>;
   }, [text, has_structured_elements, dataPackageStore]);
 
-  return (
-    <div className="px-2 pb-2 max-w-none text-sm">
-      <Markdown components={markdownComponents}>{md}</Markdown>
-    </div>
-  );
+  return <div className="px-2 pb-2 max-w-none text-sm">{rendered}</div>;
 }
