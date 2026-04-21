@@ -16,7 +16,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 
 export function DashboardPanel() {
-  const pinnedVisualizations = useDashboard((s) => s.pinnedVisualizations);
+  const activeVisualizations = useDashboard((s) => s.activeVisualizations);
   const vizSelections = useSelections((s) => s.selections);
   const dataSelections = useDataFilters((s) => s.dataSelections);
   const filterAllNullValues = useDashboard((s) => s.filterAllNullValues);
@@ -29,7 +29,7 @@ export function DashboardPanel() {
     [vizSelections, dataSelections],
   );
 
-  const entries = Array.from(pinnedVisualizations.entries()).reverse();
+  const entries = Array.from(activeVisualizations.entries()).reverse();
 
   return (
     <ScrollArea className="h-full p-3">

@@ -106,8 +106,8 @@ export function VizTweakComponent({ spec, messageIndex, toolCallIndex }: VizTwea
       // or already bound to newField). Skip the store update in that case.
       if (updatedSpec === spec) return;
 
-      const pinKey = dashboardStore.getState().pinKey(messageIndex, toolCallIndex);
-      dashboardStore.getState().updatePinnedVisualizationSpec(pinKey, updatedSpec, sourceFields);
+      const vizKey = dashboardStore.getState().vizKey(messageIndex, toolCallIndex);
+      dashboardStore.getState().updateActiveVisualizationSpec(vizKey, updatedSpec, sourceFields);
       // Reapply filter transformations to the updated spec (null filters, named filters)
       dashboardStore.getState().updateSpecFilters(dataFiltersStore, dataPackageStore);
     },

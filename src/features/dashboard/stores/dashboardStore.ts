@@ -6,7 +6,7 @@ import type { DataPackageState } from '@/features/data-package';
 import type { MemoryBankState } from './memoryBankStore';
 import type { EntityRelationship } from '@/types/dataPackage';
 
-export interface PinnedVisualization {
+export interface ActiveVisualization {
   index: number;
   toolCallIndex: number;
   spec: UDIGrammar;
@@ -23,13 +23,13 @@ export interface ExtractedSpec {
 }
 
 export interface DashboardState {
-  pinnedVisualizations: Map<string, PinnedVisualization>;
+  activeVisualizations: Map<string, ActiveVisualization>;
   filterAllNullValues: boolean;
   expandedVisualizations: Set<string>;
   tableViewKeys: Set<string>;
   hoveredVisualizationIndex: string | null;
-  pinKey: (messageIndex: number, toolCallIndex: number) => string;
-  pinVisualization: (
+  vizKey: (messageIndex: number, toolCallIndex: number) => string;
+  addActiveVisualization: (
     index: number,
     toolCallIndex: number,
     spec: UDIGrammar,
@@ -37,7 +37,7 @@ export interface DashboardState {
     sourceFields: Record<string, string[]> | null,
     title?: string,
   ) => void;
-  pinVisualizationBatch: (
+  addActiveVisualizationBatch: (
     items: Array<{
       index: number;
       toolCallIndex: number;
@@ -47,9 +47,9 @@ export interface DashboardState {
       title?: string;
     }>,
   ) => void;
-  unpinVisualization: (key: string, memoryBankStore?: StoreApi<MemoryBankState>) => void;
+  closeVisualization: (key: string, memoryBankStore?: StoreApi<MemoryBankState>) => void;
   restoreFromMemoryBank: (key: string, memoryBankStore: StoreApi<MemoryBankState>) => void;
-  isPinned: (key: string) => boolean;
+  isActive: (key: string) => boolean;
   clearAllVisualizations: () => void;
   setFilterAllNullValues: (value: boolean) => void;
   toggleExpanded: (key: string) => void;
@@ -69,7 +69,7 @@ export interface DashboardState {
     dataPackageStore: StoreApi<DataPackageState>,
   ) => object[];
   getFilterIds: (dataFiltersStore: StoreApi<DataFiltersState>) => string[];
-  updatePinnedVisualizationSpec: (
+  updateActiveVisualizationSpec: (
     key: string,
     newSpec: UDIGrammar,
     sourceFields: Record<string, string[]> | null,
@@ -214,50 +214,50 @@ function getRepresentedFields(spec: UDIGrammar): string[] {
 
 export function createDashboardStore() {
   return createStore<DashboardState>()((set, get) => ({
-    pinnedVisualizations: new Map(),
+    activeVisualizations: new Map(),
     filterAllNullValues: true,
     expandedVisualizations: new Set(),
     tableViewKeys: new Set(),
     hoveredVisualizationIndex: null,
 
-    pinKey: (messageIndex, toolCallIndex) => `${messageIndex}-${toolCallIndex}`,
+    vizKey: (messageIndex, toolCallIndex) => `${messageIndex}-${toolCallIndex}`,
 
-    pinVisualization: (index, toolCallIndex, spec, userPrompt, sourceFields, title) => {
+    addActiveVisualization: (index, toolCallIndex, spec, userPrompt, sourceFields, title) => {
       const uuid = generateId();
       const interactiveSpec = injectInteractivity(spec, uuid, sourceFields);
-      const key = get().pinKey(index, toolCallIndex);
+      const key = get().vizKey(index, toolCallIndex);
       set((state) => {
-        const next = new Map(state.pinnedVisualizations);
+        const next = new Map(state.activeVisualizations);
         next.set(key, { index, toolCallIndex, spec, interactiveSpec, userPrompt, title, uuid });
-        return { pinnedVisualizations: next };
+        return { activeVisualizations: next };
       });
     },
 
-    pinVisualizationBatch: (items) => {
+    addActiveVisualizationBatch: (items) => {
       if (items.length === 0) return;
       set((state) => {
-        const next = new Map(state.pinnedVisualizations);
+        const next = new Map(state.activeVisualizations);
         for (const { index, toolCallIndex, spec, userPrompt, sourceFields, title } of items) {
           const uuid = generateId();
           const interactiveSpec = injectInteractivity(spec, uuid, sourceFields);
           const key = `${index}-${toolCallIndex}`;
           next.set(key, { index, toolCallIndex, spec, interactiveSpec, userPrompt, title, uuid });
         }
-        return { pinnedVisualizations: next };
+        return { activeVisualizations: next };
       });
     },
 
-    unpinVisualization: (key, memoryBankStore) => {
-      const viz = get().pinnedVisualizations.get(key);
+    closeVisualization: (key, memoryBankStore) => {
+      const viz = get().activeVisualizations.get(key);
       if (viz && memoryBankStore) {
         memoryBankStore.getState().addToMemoryBank(key, viz);
       }
       set((state) => {
-        const next = new Map(state.pinnedVisualizations);
+        const next = new Map(state.activeVisualizations);
         next.delete(key);
         const nextExpanded = new Set(state.expandedVisualizations);
         nextExpanded.delete(key);
-        return { pinnedVisualizations: next, expandedVisualizations: nextExpanded };
+        return { activeVisualizations: next, expandedVisualizations: nextExpanded };
       });
     },
 
@@ -265,18 +265,18 @@ export function createDashboardStore() {
       const viz = memoryBankStore.getState().closedVisualizations.get(key);
       if (!viz) return;
       set((state) => {
-        const next = new Map(state.pinnedVisualizations);
+        const next = new Map(state.activeVisualizations);
         next.set(key, viz);
-        return { pinnedVisualizations: next };
+        return { activeVisualizations: next };
       });
       memoryBankStore.getState().removeFromMemoryBank(key);
     },
 
-    isPinned: (key) => get().pinnedVisualizations.has(key),
+    isActive: (key) => get().activeVisualizations.has(key),
 
     clearAllVisualizations: () =>
       set({
-        pinnedVisualizations: new Map(),
+        activeVisualizations: new Map(),
         expandedVisualizations: new Set(),
         tableViewKeys: new Set(),
       }),
@@ -310,7 +310,7 @@ export function createDashboardStore() {
     isHovered: (key) => get().hoveredVisualizationIndex === key,
 
     getFilterIds: (dataFiltersStore) => {
-      const vizFilterIDs = Array.from(get().pinnedVisualizations.values()).map((v) => v.uuid);
+      const vizFilterIDs = Array.from(get().activeVisualizations.values()).map((v) => v.uuid);
       const validSelections = dataFiltersStore.getState().getValidDataSelections({
         isValidIntervalFilter: () => ({ isValid: 'yes' }),
         isValidPointFilter: () => ({ isValid: 'yes' }),
@@ -324,7 +324,7 @@ export function createDashboardStore() {
     getNamedFilters: (filterIdList, currentSourceName, dataFiltersStore, dataPackageStore) => {
       const state = get();
       const uuidToSource = new Map<string, string>();
-      for (const v of state.pinnedVisualizations.values()) {
+      for (const v of state.activeVisualizations.values()) {
         const sourceName = getSpecSourceName(v.interactiveSpec);
         if (v.uuid && sourceName) uuidToSource.set(v.uuid, sourceName);
       }
@@ -367,7 +367,7 @@ export function createDashboardStore() {
       const state = get();
       const dpState = dataPackageStore.getState();
       const filterIdList = (() => {
-        const vizFilterIDs = Array.from(state.pinnedVisualizations.values()).map((v) => v.uuid);
+        const vizFilterIDs = Array.from(state.activeVisualizations.values()).map((v) => v.uuid);
         const validSelections = dataFiltersStore.getState().getValidDataSelections({
           isValidIntervalFilter: dpState.isValidIntervalFilter,
           isValidPointFilter: dpState.isValidPointFilter,
@@ -377,7 +377,7 @@ export function createDashboardStore() {
       })();
 
       let changed = false;
-      const next = new Map(state.pinnedVisualizations);
+      const next = new Map(state.activeVisualizations);
 
       for (const [key, viz] of next) {
         const currentSourceName = getSpecSourceName(viz.interactiveSpec);
@@ -416,17 +416,17 @@ export function createDashboardStore() {
         }
       }
 
-      if (changed) set({ pinnedVisualizations: next });
+      if (changed) set({ activeVisualizations: next });
     },
 
-    updatePinnedVisualizationSpec: (key, newSpec, sourceFields) => {
-      const viz = get().pinnedVisualizations.get(key);
+    updateActiveVisualizationSpec: (key, newSpec, sourceFields) => {
+      const viz = get().activeVisualizations.get(key);
       if (!viz) return;
       const interactiveSpec = injectInteractivity(newSpec, viz.uuid, sourceFields);
       set((state) => {
-        const next = new Map(state.pinnedVisualizations);
+        const next = new Map(state.activeVisualizations);
         next.set(key, { ...viz, spec: newSpec, interactiveSpec });
-        return { pinnedVisualizations: next };
+        return { activeVisualizations: next };
       });
     },
   }));

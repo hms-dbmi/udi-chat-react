@@ -9,7 +9,7 @@ import {
 
 /**
  * Bundles the "reset everything" action — clears the active conversation,
- * all pinned visualizations, selections, the closed-viz memory bank, and
+ * all active visualizations, selections, the closed-viz memory bank, and
  * all cross-chart filters.
  */
 export function useResetHandlers(): { handleReset: () => void } {

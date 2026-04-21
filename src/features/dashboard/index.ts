@@ -10,7 +10,7 @@ export {
   createDashboardStore,
   extractAllUdiSpecsFromMessage,
   type DashboardState,
-  type PinnedVisualization,
+  type ActiveVisualization,
 } from './stores/dashboardStore';
 
 export {
