@@ -21,6 +21,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useGlobal } from '@/app/UDIChatContext';
 import { useExamplePrompts } from '../hooks/useExamplePrompts';
 import { useDebugExports } from '../hooks/useDebugExports';
+import { MemoryBankButton } from './MemoryBankButton';
 import type { QueryConfig } from '../api/completions';
 
 interface ChatHeaderBarProps {
@@ -118,6 +119,7 @@ export function ChatHeaderBar({
             </DialogContent>
           </Dialog>
         )}
+        <MemoryBankButton />
         {hasApiKey && (
           <Tooltip>
             <TooltipTrigger
