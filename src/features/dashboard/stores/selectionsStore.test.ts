@@ -45,30 +45,26 @@ describe('selectionsStore', () => {
     const store = createSelectionsStore();
     store.getState().updateSelections({ brush1: makeSelection('age', [0, 50]) });
     // Signal a cleared brush by setting selection to null.
-    store
-      .getState()
-      .updateSelections({
-        brush1: {
-          dataSourceKey: 'donors',
-          type: 'interval',
-          selection: null as unknown as Record<string, unknown[]>,
-        },
-      });
+    store.getState().updateSelections({
+      brush1: {
+        dataSourceKey: 'donors',
+        type: 'interval',
+        selection: null as unknown as Record<string, unknown[]>,
+      },
+    });
     expect(store.getState().selections).toEqual({});
   });
 
   it('updateSelections is a no-op when clearing a key that is not set', () => {
     const store = createSelectionsStore();
     const before = store.getState().selections;
-    store
-      .getState()
-      .updateSelections({
-        brush1: {
-          dataSourceKey: 'donors',
-          type: 'interval',
-          selection: null as unknown as Record<string, unknown[]>,
-        },
-      });
+    store.getState().updateSelections({
+      brush1: {
+        dataSourceKey: 'donors',
+        type: 'interval',
+        selection: null as unknown as Record<string, unknown[]>,
+      },
+    });
     expect(store.getState().selections).toBe(before);
   });
 

@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 import dts from 'vite-plugin-dts';
 
 export default defineConfig(({ mode }) => ({
+  base: mode === 'lib' ? '/' : (process.env.VITE_BASE ?? '/'),
   plugins: [
     react(),
     tailwindcss(),
@@ -29,8 +30,8 @@ export default defineConfig(({ mode }) => ({
       ? {
           lib: {
             entry: resolve(__dirname, 'src/index.ts'),
-            name: 'UDIChatReact',
-            fileName: 'udi-chat-react',
+            name: 'UDIYac',
+            fileName: 'udi-yac',
             formats: ['es'] as const,
           },
           rollupOptions: {

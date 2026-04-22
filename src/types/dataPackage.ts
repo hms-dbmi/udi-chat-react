@@ -37,7 +37,7 @@ export interface DataPackageResource {
       'udi:cardinality'?: {
         from: 'one' | 'many';
         to: 'one' | 'many';
-      }
+      };
       reference: {
         resource: string;
         fields: string[];
