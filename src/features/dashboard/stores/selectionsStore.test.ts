@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { createSelectionsStore } from './selectionsStore';
-import type { DataSelection } from 'udi-toolkit/react';
+import type { DataSelection, PointSelection, RangeSelection } from 'udi-toolkit/react';
+
+type Selection = RangeSelection | PointSelection | null;
 
 function makeSelection(
   field: string,
@@ -8,7 +10,7 @@ function makeSelection(
   type: 'interval' | 'point' = 'interval',
   dataSourceKey = 'donors',
 ): DataSelection {
-  return { dataSourceKey, type, selection: { [field]: value } };
+  return { dataSourceKey, type, selection: { [field]: value } as unknown as Selection };
 }
 
 describe('selectionsStore', () => {
@@ -49,7 +51,7 @@ describe('selectionsStore', () => {
       brush1: {
         dataSourceKey: 'donors',
         type: 'interval',
-        selection: null as unknown as Record<string, unknown[]>,
+        selection: null as unknown as Selection,
       },
     });
     expect(store.getState().selections).toEqual({});
@@ -62,7 +64,7 @@ describe('selectionsStore', () => {
       brush1: {
         dataSourceKey: 'donors',
         type: 'interval',
-        selection: null as unknown as Record<string, unknown[]>,
+        selection: null as unknown as Selection,
       },
     });
     expect(store.getState().selections).toBe(before);
