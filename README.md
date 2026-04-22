@@ -1,6 +1,6 @@
-# udi-chat-react
+# udi-yac
 
-React implementation of the UDI Chat interface — an AI-powered system for querying and visualizing biomedical datasets via natural language. This is a React port of the original Vue 3/Quasar `udi-chat` app.
+React implementation of the UDI Chat interface — an AI-powered system for querying and visualizing biomedical datasets via natural language. This is a React port of the original Vue 3/Quasar `udi-chat` app. Published on npm as [`udi-yac`](https://www.npmjs.com/package/udi-yac); the repository directory remains `udi-chat-react`.
 
 ## Quick Start
 
@@ -56,8 +56,8 @@ The project builds as both a **library** and a **standalone app**:
 ### Library Usage
 
 ```tsx
-import { UDIChat } from 'udi-chat-react';
-import 'udi-chat-react/style.css';
+import { UDIChat } from 'udi-yac';
+import 'udi-yac/style.css';
 
 <UDIChat
   apiBaseUrl="http://localhost:8007"
@@ -122,7 +122,7 @@ If the remote server requires authentication, pass `fetchOptions` with the neces
 Pass a `DataPackage` object directly via the `dataPackage` prop. This is useful when you build the schema programmatically or receive it from an API. CSVs are still loaded from the URLs in `udi:path` + `resource.path` for domain computation, unless you also provide `dataFieldDomains` to skip that step entirely.
 
 ```tsx
-import type { DataPackage } from 'udi-chat-react';
+import type { DataPackage } from 'udi-yac';
 
 const myDataPackage: DataPackage = {
   'udi:path': 'https://portal.hubmapconsortium.org/metadata/v0/',
@@ -153,7 +153,7 @@ const myDataPackage: DataPackage = {
 To skip CSV loading entirely (e.g. when you already have domain metadata), pass pre-computed domains:
 
 ```tsx
-import type { DataFieldDomain } from 'udi-chat-react';
+import type { DataFieldDomain } from 'udi-yac';
 
 const myDomains: DataFieldDomain[] = [
   {
@@ -333,14 +333,14 @@ src/
 
 The `project-structure/independent-modules` rule enforces these import boundaries:
 
-| From                  | Can import                                                                                       |
-| --------------------- | ------------------------------------------------------------------------------------------------ |
-| `src/features/X/**`   | own family, **other features' `index.ts` only**, `src/{utils,types,lib,stores,components/ui}/**` |
-| `src/app/**`          | any feature internal, all shared layers                                                          |
-| `src/components/ui/`  | sibling UI, `src/lib/`                                                                           |
-| `src/utils/`          | `src/{utils,types,lib,stores}/`, feature barrels                                                 |
-| `src/{types,lib}/`    | shared layers only                                                                               |
-| `src/stores/`         | `src/{stores,types,lib}/`                                                                        |
+| From                 | Can import                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------------ |
+| `src/features/X/**`  | own family, **other features' `index.ts` only**, `src/{utils,types,lib,stores,components/ui}/**` |
+| `src/app/**`         | any feature internal, all shared layers                                                          |
+| `src/components/ui/` | sibling UI, `src/lib/`                                                                           |
+| `src/utils/`         | `src/{utils,types,lib,stores}/`, feature barrels                                                 |
+| `src/{types,lib}/`   | shared layers only                                                                               |
+| `src/stores/`        | `src/{stores,types,lib}/`                                                                        |
 
 Cross-feature imports must go through the feature's `index.ts` barrel — direct paths like `@/features/dashboard/stores/dataFiltersStore` from another feature will fail lint.
 
