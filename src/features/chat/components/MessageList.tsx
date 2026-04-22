@@ -45,7 +45,14 @@ export function MessageList({
 
     const handleScroll = () => {
       const distance = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
-      pinnedRef.current = distance < PIN_THRESHOLD_PX;
+      const nowPinned = distance < PIN_THRESHOLD_PX;
+      const wasPinned = pinnedRef.current;
+      pinnedRef.current = nowPinned;
+      // Re-entering the pinned region is one of the two "I've caught up"
+      // signals that dismisses the unread divider.
+      if (nowPinned && !wasPinned) {
+        setFirstUnreadIndex(null);
+      }
     };
     viewport.addEventListener('scroll', handleScroll, { passive: true });
     return () => viewport.removeEventListener('scroll', handleScroll);
@@ -54,21 +61,28 @@ export function MessageList({
   // On new-message arrival: if the user is pinned, scroll the newest message
   // to the top of the viewport; otherwise mark the first unread boundary so a
   // divider + "new message" pill can surface the fact that content arrived
-  // out of view.
+  // out of view. Sending a user message counts as the user re-engaging with
+  // the conversation and clears the divider, even if the viewport hasn't
+  // scrolled yet.
   useEffect(() => {
     const prev = prevLengthRef.current;
     prevLengthRef.current = messages.length;
     if (messages.length <= prev) return;
 
-    if (!pinnedRef.current) {
+    const latest = messages[messages.length - 1];
+    const userSent = latest?.role === 'user';
+
+    if (pinnedRef.current || userSent) {
+      setFirstUnreadIndex(null);
+    } else {
       // Preserve the earliest unread boundary across successive arrivals —
       // once a gap opens, the divider should anchor to where reading stopped,
       // not creep forward with every new message.
       setFirstUnreadIndex((current) => current ?? prev);
-      return;
     }
 
-    setFirstUnreadIndex(null);
+    if (!pinnedRef.current) return;
+
     justAddedMessageRef.current = true;
     const frame = requestAnimationFrame(() => {
       const items = contentRef.current?.querySelectorAll<HTMLElement>('[data-message]');
