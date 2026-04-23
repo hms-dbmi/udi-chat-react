@@ -14,7 +14,8 @@ on:
           - major
 
 permissions:
-  contents: write
+  id-token: write # Required for OIDC
+  contents: write # Required to push commits and tags
 
 jobs:
   release:
@@ -72,9 +73,7 @@ jobs:
         run: git push origin HEAD --follow-tags
 
       - name: Publish to npm
-        run: pnpm publish --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: pnpm publish
 
       - name: Create GitHub Release
         env:
