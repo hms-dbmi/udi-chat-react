@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { queryLLM, type QueryConfig, type ToolCallResponse } from '../api/completions';
-import { useConversationStore, useDataPackageStore } from '@/app/UDIChatContext';
+import { useConversationStore, useDataPackageStore, useTracker } from '@/app/UDIChatContext';
 import type { Message } from '@/types/messages';
 
 interface UseChatApiOptions {
@@ -32,11 +32,13 @@ export function useChatApi(config: QueryConfig, options: UseChatApiOptions = {})
   const [error, setError] = useState<string | null>(null);
   const conversationStore = useConversationStore();
   const dataPackageStore = useDataPackageStore();
+  const trackEvent = useTracker();
 
   const runCompletion = useCallback(
     async (messages: Message[]) => {
       const dpState = dataPackageStore.getState();
       const hadUserKey = !!config.openAiKey;
+      const startedAt = performance.now();
 
       setIsLoading(true);
       setError(null);
@@ -57,26 +59,54 @@ export function useChatApi(config: QueryConfig, options: UseChatApiOptions = {})
           })),
         });
 
+        const durationMs = Math.round(performance.now() - startedAt);
+        const toolCallNames = toolCalls.map((tc) => tc.name);
+        const rebuff = toolCalls.find((tc) => tc.name === 'Rebuff');
+        trackEvent('response_received', {
+          durationMs,
+          toolCallNames,
+          toolCallCount: toolCalls.length,
+          hadUserKey,
+          hasRebuff: !!rebuff,
+        });
+        if (rebuff) {
+          const reason = (rebuff.arguments as { reason?: unknown }).reason;
+          trackEvent('rebuff_received', {
+            reason: typeof reason === 'string' ? reason : undefined,
+            hadUserKey,
+          });
+        }
+
         if (toolCalls.some(isBudgetExceededRebuff)) {
           onQuotaRebuff?.(hadUserKey);
         } else {
           onNormalResponse?.();
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
+        const message = e instanceof Error ? e.message : String(e);
+        setError(message);
+        trackEvent('request_failed', {
+          durationMs: Math.round(performance.now() - startedAt),
+          hadUserKey,
+        });
       } finally {
         setIsLoading(false);
       }
     },
-    [config, conversationStore, dataPackageStore, onQuotaRebuff, onNormalResponse],
+    [config, conversationStore, dataPackageStore, onQuotaRebuff, onNormalResponse, trackEvent],
   );
 
   const sendMessage = useCallback(
     async (text: string) => {
       conversationStore.getState().addMessage({ role: 'user', content: text });
+      trackEvent('message_sent', {
+        charCount: text.length,
+        conversationLength: conversationStore.getState().messages.length,
+        hasUserApiKey: !!config.openAiKey,
+      });
       await runCompletion(conversationStore.getState().messages);
     },
-    [conversationStore, runCompletion],
+    [conversationStore, runCompletion, trackEvent, config.openAiKey],
   );
 
   /**
