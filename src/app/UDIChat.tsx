@@ -1,6 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   UDIChatProvider,
+  DownloadActionsProvider,
+  EntityIconsProvider,
+  MascotProvider,
+  SplashMessagesProvider,
   useConversation,
   useDataPackageStore,
   useDashboardStore,
@@ -184,9 +188,17 @@ function UDIChatValidated(props: UDIChatConfig) {
   return (
     <TooltipProvider>
       <UDIChatProvider>
-        <div className={cn('h-full w-full', props.className)} style={props.style}>
-          <UDIChatInner {...props} />
-        </div>
+        <DownloadActionsProvider actions={props.downloadActions}>
+          <EntityIconsProvider icons={props.entityIcons}>
+            <MascotProvider mascot={props.mascot}>
+              <SplashMessagesProvider messages={props.splashMessages}>
+                <div className={cn('h-full w-full', props.className)} style={props.style}>
+                  <UDIChatInner {...props} />
+                </div>
+              </SplashMessagesProvider>
+            </MascotProvider>
+          </EntityIconsProvider>
+        </DownloadActionsProvider>
       </UDIChatProvider>
     </TooltipProvider>
   );

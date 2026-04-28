@@ -80,6 +80,10 @@ import 'udi-yac/style.css';
 | `authToken`        | `string?`            | JWT bearer token for API auth                                                                                   |
 | `requireApiKey`    | `boolean?`           | Show API key input before chatting                                                                              |
 | `model`            | `string?`            | LLM model name override                                                                                         |
+| `downloadActions`  | `DownloadAction[]?`  | Extra items appended to the Download Data dropdown. See [Custom download actions](#custom-download-actions).    |
+| `entityIcons`      | `EntityIconMap?`     | Icon overrides for entity count chips. See [Custom entity icons](#custom-entity-icons).                         |
+| `mascot`           | `ReactNode \| null?` | Replace or hide the welcome mascot. See [Custom mascot](#custom-mascot).                                        |
+| `splashMessages`   | `readonly string[]?` | Override or hide the randomised prompt above the mascot. See [Custom splash messages](#custom-splash-messages). |
 | `className`        | `string?`            | CSS class for the root element                                                                                  |
 | `style`            | `CSSProperties?`     | Inline styles for the root element                                                                              |
 
@@ -215,8 +219,112 @@ See [`src/data/hubmapRemote.ts`](src/data/hubmapRemote.ts) for the canonical inl
 ### Data Management
 
 - **Entity counts**: per-entity row counts with dynamic filtered counts
-- **Download**: filtered data as ZIP of CSVs, or manifest (hubmap_id extraction)
+- **Download**: filtered data as ZIP of CSVs, or manifest (hubmap_id extraction). Consumers can extend the dropdown with custom actions via the `downloadActions` prop — see [Custom download actions](#custom-download-actions).
 - Data package loading with domain computation (Arquero)
+
+### Custom download actions
+
+Pass `downloadActions` on `UDIChatConfig` to append consumer-specific entries to the Download Data dropdown. Each action's `onClick` receives a snapshot of the current filters and the per-source rows the built-in "Download Raw Data" would have used, so you can export to custom formats, post to an API, or route to another tool.
+
+```tsx
+import { UDIChat } from 'udi-yac';
+import type { DownloadAction } from 'udi-yac';
+
+const sendToWorkspaces: DownloadAction = {
+  label: 'Open in Workspaces',
+  disabled: (ctx) => ctx.rowsBySource.every((r) => r.rows.length === 0),
+  onClick: async ({ rowsBySource, filters }) => {
+    const ids = rowsBySource.flatMap(({ rows }) =>
+      rows.map((r) => String(r['hubmap_id'] ?? '')).filter(Boolean),
+    );
+    await fetch('/api/workspaces', {
+      method: 'POST',
+      body: JSON.stringify({ ids, filters }),
+    });
+  },
+};
+
+<UDIChat apiBaseUrl="http://localhost:8007" downloadActions={[sendToWorkspaces]} />;
+```
+
+The `DownloadActionContext` passed to each callback contains:
+
+| Field          | Type                                | Notes                                                              |
+| -------------- | ----------------------------------- | ------------------------------------------------------------------ |
+| `rowsBySource` | `{ source: string; rows: Row[] }[]` | Post-filter, post-brush rows — same data the built-in ZIP exports. |
+| `filters`      | `DataSelections`                    | Active filter selections keyed by filter id.                       |
+| `dataPackage`  | `DataPackage \| null`               | The loaded data package; null until first resolution completes.    |
+
+Custom actions render after the two built-in items, separated by a divider.
+
+### Custom entity icons
+
+Pass `entityIcons` on `UDIChatConfig` to change the icon rendered on each entity count chip in the dashboard header. Keys are entity names exactly as they appear in the data package (`resources[].name`). Any component that accepts a `className` prop works — lucide-react icons are typical.
+
+```tsx
+import { UDIChat } from 'udi-yac';
+import type { EntityIconMap } from 'udi-yac';
+import { Dna, FlaskConical } from 'lucide-react';
+
+const icons: EntityIconMap = {
+  // Override the default icon for an existing entity:
+  samples: FlaskConical,
+  // Add an icon for a custom entity:
+  sequencing_runs: Dna,
+};
+
+<UDIChat apiBaseUrl="http://localhost:8007" entityIcons={icons} />;
+```
+
+Consumer entries are merged on top of the built-in icons (`donors`, `samples`, `datasets`, …) — you only need to supply the names you want to override or add. Entities with no match fall back to a generic table icon.
+
+### Custom mascot
+
+The empty-dashboard welcome splash renders a YAC mascot by default. Consumers can replace it or hide it via the `mascot` prop on `UDIChatConfig`:
+
+| Value              | Result                                                                 |
+| ------------------ | ---------------------------------------------------------------------- |
+| `undefined` (omit) | Renders the built-in YAC mascot image.                                 |
+| `null`             | Hides the mascot entirely. The speech-bubble prompt above still shows. |
+| Any `ReactNode`    | Renders the provided node in place of the mascot image.                |
+
+```tsx
+import { UDIChat } from 'udi-yac';
+
+// Replace with a custom image:
+<UDIChat
+  apiBaseUrl="http://localhost:8007"
+  mascot={<img src="/my-mascot.svg" alt="" className="w-60 h-60 object-contain" />}
+/>
+
+// Hide entirely:
+<UDIChat apiBaseUrl="http://localhost:8007" mascot={null} />
+```
+
+### Custom splash messages
+
+One prompt is picked at random from a built-in pool (`"Ask me for a visualization!"`, `"What data would you like to explore?"`, etc.) and shown in the speech bubble above the mascot. Override via `splashMessages` on `UDIChatConfig`:
+
+| Value              | Result                                                 |
+| ------------------ | ------------------------------------------------------ |
+| `undefined` (omit) | Random pick from the built-in defaults.                |
+| Non-empty array    | Random pick from the provided strings exclusively.     |
+| `[]`               | Hides the speech bubble entirely (mascot still shows). |
+
+```tsx
+<UDIChat
+  apiBaseUrl="http://localhost:8007"
+  splashMessages={[
+    'Ask me about donors, samples, or datasets.',
+    'Try “average age by sex”.',
+  ]}
+/>
+
+// Hide the speech bubble:
+<UDIChat apiBaseUrl="http://localhost:8007" splashMessages={[]} />
+```
+
+The selection is made once per `UDIChat` mount, so the message doesn't flicker between renders.
 
 ### Debug Mode (type `!/admin` in chat)
 

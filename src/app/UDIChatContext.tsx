@@ -1,5 +1,6 @@
-import { createContext, useContext, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useRef, useMemo, type ReactNode } from 'react';
 import { useStore, type StoreApi } from 'zustand';
+import type { DownloadAction, EntityIconMap } from '@/features/dashboard';
 import {
   createConversationStore,
   type ConversationState,
@@ -114,4 +115,96 @@ export function useGlobal<T>(selector: (state: GlobalState) => T): T {
 
 export function useGlobalStore(): StoreApi<GlobalState> {
   return useStores().global;
+}
+
+// ---------------------------------------------------------------------------
+// Consumer-provided download actions
+// ---------------------------------------------------------------------------
+
+const DownloadActionsContext = createContext<readonly DownloadAction[]>([]);
+
+export function DownloadActionsProvider({
+  actions,
+  children,
+}: {
+  actions: readonly DownloadAction[] | undefined;
+  children: ReactNode;
+}) {
+  const value = useMemo(() => actions ?? [], [actions]);
+  return (
+    <DownloadActionsContext.Provider value={value}>{children}</DownloadActionsContext.Provider>
+  );
+}
+
+export function useDownloadActions(): readonly DownloadAction[] {
+  return useContext(DownloadActionsContext);
+}
+
+// ---------------------------------------------------------------------------
+// Consumer-provided entity icon overrides
+// ---------------------------------------------------------------------------
+
+const EMPTY_ICON_MAP: EntityIconMap = Object.freeze({});
+const EntityIconsContext = createContext<EntityIconMap>(EMPTY_ICON_MAP);
+
+export function EntityIconsProvider({
+  icons,
+  children,
+}: {
+  icons: EntityIconMap | undefined;
+  children: ReactNode;
+}) {
+  const value = useMemo(() => icons ?? EMPTY_ICON_MAP, [icons]);
+  return <EntityIconsContext.Provider value={value}>{children}</EntityIconsContext.Provider>;
+}
+
+export function useEntityIcons(): EntityIconMap {
+  return useContext(EntityIconsContext);
+}
+
+// ---------------------------------------------------------------------------
+// Consumer-provided mascot override
+// ---------------------------------------------------------------------------
+// Three-state so the default mascot is only rendered when the prop is
+// omitted entirely:
+//   - `undefined`: fall back to the built-in YAC mascot image
+//   - `null`: explicitly hide — render nothing where the mascot would go
+//   - any other ReactNode: render the consumer's node in place of the mascot
+
+type MascotValue = ReactNode | null | undefined;
+
+const MascotContext = createContext<MascotValue>(undefined);
+
+export function MascotProvider({ mascot, children }: { mascot: MascotValue; children: ReactNode }) {
+  return <MascotContext.Provider value={mascot}>{children}</MascotContext.Provider>;
+}
+
+export function useMascot(): MascotValue {
+  return useContext(MascotContext);
+}
+
+// ---------------------------------------------------------------------------
+// Consumer-provided splash messages
+// ---------------------------------------------------------------------------
+// `undefined` → use built-in defaults.
+// Any array (including `[]`) → use exactly those; empty array hides the
+// speech bubble entirely. That lets consumers opt out of the prompt without
+// adding a separate flag.
+
+const SplashMessagesContext = createContext<readonly string[] | undefined>(undefined);
+
+export function SplashMessagesProvider({
+  messages,
+  children,
+}: {
+  messages: readonly string[] | undefined;
+  children: ReactNode;
+}) {
+  return (
+    <SplashMessagesContext.Provider value={messages}>{children}</SplashMessagesContext.Provider>
+  );
+}
+
+export function useSplashMessages(): readonly string[] | undefined {
+  return useContext(SplashMessagesContext);
 }
