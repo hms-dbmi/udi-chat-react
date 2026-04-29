@@ -94,7 +94,7 @@ export function FieldListChip({ entity, fields }: FieldListChipProps) {
           className="h-7 pl-7 text-xs"
         />
       </div>
-      <TooltipProvider delay={150}>
+      <TooltipProvider delay={150} timeout={0}>
         <div className="flex flex-wrap gap-1">
           {visible.map((field) => (
             <FieldChip key={field} field={field} meta={fieldMeta[field]} highlight={trimmedQuery} />
