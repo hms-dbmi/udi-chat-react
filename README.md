@@ -333,14 +333,14 @@ src/
 
 The `project-structure/independent-modules` rule enforces these import boundaries:
 
-| From                  | Can import                                                                                       |
-| --------------------- | ------------------------------------------------------------------------------------------------ |
-| `src/features/X/**`   | own family, **other features' `index.ts` only**, `src/{utils,types,lib,stores,components/ui}/**` |
-| `src/app/**`          | any feature internal, all shared layers                                                          |
-| `src/components/ui/`  | sibling UI, `src/lib/`                                                                           |
-| `src/utils/`          | `src/{utils,types,lib,stores}/`, feature barrels                                                 |
-| `src/{types,lib}/`    | shared layers only                                                                               |
-| `src/stores/`         | `src/{stores,types,lib}/`                                                                        |
+| From                 | Can import                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------------ |
+| `src/features/X/**`  | own family, **other features' `index.ts` only**, `src/{utils,types,lib,stores,components/ui}/**` |
+| `src/app/**`         | any feature internal, all shared layers                                                          |
+| `src/components/ui/` | sibling UI, `src/lib/`                                                                           |
+| `src/utils/`         | `src/{utils,types,lib,stores}/`, feature barrels                                                 |
+| `src/{types,lib}/`   | shared layers only                                                                               |
+| `src/stores/`        | `src/{stores,types,lib}/`                                                                        |
 
 Cross-feature imports must go through the feature's `index.ts` barrel — direct paths like `@/features/dashboard/stores/dataFiltersStore` from another feature will fail lint.
 
