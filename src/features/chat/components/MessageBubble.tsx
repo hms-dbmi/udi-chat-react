@@ -2,6 +2,7 @@ import type { Message } from '@/types/messages';
 import { ToolCallRenderer } from '@/features/tool-calls';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDashboard } from '@/app/UDIChatContext';
+import { MarkdownText } from '@/components/MarkdownText';
 import { cn } from '@/lib/utils';
 
 interface MessageBubbleProps {
@@ -25,7 +26,7 @@ export function MessageBubble({ message, messageIndex, onSelectSuggestion }: Mes
   const toolCalls = message.tool_calls ?? [];
 
   return (
-    <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
+    <div data-message className={cn('flex scroll-mt-6', isUser ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
           'max-w-[85%] rounded-lg px-3 py-2',
@@ -33,7 +34,7 @@ export function MessageBubble({ message, messageIndex, onSelectSuggestion }: Mes
         )}
       >
         {/* Message text */}
-        {message.content && <p className="text-sm whitespace-pre-wrap">{message.content}</p>}
+        {message.content && <MarkdownText>{message.content}</MarkdownText>}
 
         {/* Tool calls */}
         {toolCalls.length === 1 && (
