@@ -26,3 +26,10 @@ export {
 export { createSelectionsStore, type SelectionsState } from './stores/selectionsStore';
 
 export { createMemoryBankStore, type MemoryBankState } from './stores/memoryBankStore';
+
+export type {
+  DownloadAction,
+  DownloadActionContext,
+  EntityIconComponent,
+  EntityIconMap,
+} from './types';

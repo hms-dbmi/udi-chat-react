@@ -1,10 +1,10 @@
-# Contributing to udi-chat-react
+# Contributing to udi-yac
 
-This guide explains how the codebase is organized, why it's organized that way, and how to make changes that fit the existing structure.
+This guide explains how the codebase is organized, why it's organized that way, and how to make changes that fit the existing structure. The package publishes to npm as `udi-yac`; the repository directory remains `udi-chat-react`.
 
 ## Why this structure exists
 
-`udi-chat-react` is a React port of a Vue 3 / Quasar app and ships in two modes — as a publishable library (the `<UDIChat>` component) and as a standalone SPA. To keep both modes maintainable as the feature set grows, the source is laid out in a [bulletproof-react](https://github.com/alan2207/bulletproof-react)-style: a small composition root, a flat collection of feature modules, and a few shared leaf layers.
+`udi-yac` is a React port of a Vue 3 / Quasar app and ships in two modes — as a publishable library (the `<UDIChat>` component) and as a standalone SPA. To keep both modes maintainable as the feature set grows, the source is laid out in a [bulletproof-react](https://github.com/alan2207/bulletproof-react)-style: a small composition root, a flat collection of feature modules, and a few shared leaf layers.
 
 The cost of forgetting the boundaries (any feature reaching into any other) is what bulletproof-react calls a "spider web of dependencies": a change to one feature triggers cascading rewrites across the codebase. We use [`eslint-plugin-project-structure`](https://www.npmjs.com/package/eslint-plugin-project-structure) to make those boundaries enforceable rather than aspirational.
 
