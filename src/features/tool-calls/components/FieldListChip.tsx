@@ -124,7 +124,7 @@ function FieldChip({ field, meta, highlight }: FieldChipProps) {
     <Tooltip>
       <TooltipTrigger
         render={
-          <Badge variant="secondary" className="max-w-[160px] cursor-default font-mono text-[10px]">
+          <Badge variant="secondary" className="max-w-[250px] cursor-default font-mono text-[10px]">
             <span className="min-w-0 truncate">{renderHighlighted(field, highlight)}</span>
             <Info className="h-2.5 w-2.5 opacity-60" />
           </Badge>
