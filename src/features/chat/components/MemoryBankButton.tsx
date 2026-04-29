@@ -64,13 +64,13 @@ export function MemoryBankButton() {
                   {viz.title ?? viz.userPrompt}
                 </span>
                 <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 shrink-0"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
                   onClick={() => handleRestore(key)}
-                  title="Restore to dashboard"
                 >
                   <RotateCw className="h-3 w-3" />
+                  Restore to dashboard
                 </Button>
               </div>
               <UDIVis spec={viz.spec} sourceResolver={sourceResolver} />
