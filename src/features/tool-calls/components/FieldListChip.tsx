@@ -3,7 +3,7 @@ import { ChevronDown, ChevronUp, Info, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useDataPackage } from '@/app/UDIChatContext';
 
 interface FieldListChipProps {
@@ -94,19 +94,23 @@ export function FieldListChip({ entity, fields }: FieldListChipProps) {
           className="h-7 pl-7 text-xs"
         />
       </div>
-      <div className="flex flex-wrap gap-1">
-        {visible.map((field) => (
-          <FieldChip key={field} field={field} meta={fieldMeta[field]} highlight={trimmedQuery} />
-        ))}
-        {filtered.length === 0 && (
-          <span className="text-[10px] text-muted-foreground">No fields match {`"${query}"`}.</span>
-        )}
-        {!expanded && hasMore && (
-          <Badge variant="outline" className="text-[10px] text-muted-foreground">
-            +{hiddenCount} more
-          </Badge>
-        )}
-      </div>
+      <TooltipProvider delay={150}>
+        <div className="flex flex-wrap gap-1">
+          {visible.map((field) => (
+            <FieldChip key={field} field={field} meta={fieldMeta[field]} highlight={trimmedQuery} />
+          ))}
+          {filtered.length === 0 && (
+            <span className="text-[10px] text-muted-foreground">
+              No fields match {`"${query}"`}.
+            </span>
+          )}
+          {!expanded && hasMore && (
+            <Badge variant="outline" className="text-[10px] text-muted-foreground">
+              +{hiddenCount} more
+            </Badge>
+          )}
+        </div>
+      </TooltipProvider>
     </div>
   );
 }
