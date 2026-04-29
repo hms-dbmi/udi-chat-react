@@ -55,7 +55,7 @@ export function FieldListChip({ entity, fields }: FieldListChipProps) {
   }
 
   const visible = expanded ? filtered : filtered.slice(0, DEFAULT_VISIBLE);
-  const hiddenCount = fields.length - DEFAULT_VISIBLE;
+  const hiddenCount = filtered.length - DEFAULT_VISIBLE;
   const hasMore = hiddenCount > 0;
 
   return (
@@ -85,22 +85,20 @@ export function FieldListChip({ entity, fields }: FieldListChipProps) {
           </Button>
         )}
       </div>
-      {expanded && (
-        <div className="relative mb-2">
-          <Search className="pointer-events-none absolute top-1/2 left-2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Filter fields..."
-            className="h-7 pl-7 text-xs"
-          />
-        </div>
-      )}
+      <div className="relative mb-2">
+        <Search className="pointer-events-none absolute top-1/2 left-2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Filter fields..."
+          className="h-7 pl-7 text-xs"
+        />
+      </div>
       <div className="flex flex-wrap gap-1">
         {visible.map((field) => (
           <FieldChip key={field} field={field} meta={fieldMeta[field]} highlight={trimmedQuery} />
         ))}
-        {expanded && filtered.length === 0 && (
+        {filtered.length === 0 && (
           <span className="text-[10px] text-muted-foreground">No fields match {`"${query}"`}.</span>
         )}
         {!expanded && hasMore && (
