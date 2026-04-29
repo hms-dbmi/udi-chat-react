@@ -52,7 +52,7 @@ export function MemoryBankButton() {
         />
         <TooltipContent>Memory bank</TooltipContent>
       </Tooltip>
-      <DialogContent className="max-w-md max-h-[70vh]">
+      <DialogContent className="sm:max-w-2xl max-h-[80vh]">
         <DialogHeader>
           <DialogTitle className="text-sm">Memory Bank</DialogTitle>
         </DialogHeader>
