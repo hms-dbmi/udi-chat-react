@@ -73,7 +73,7 @@ export function MemoryBankButton() {
                   Restore to dashboard
                 </Button>
               </div>
-              <UDIVis spec={viz.spec} sourceResolver={sourceResolver} />
+              <UDIVis spec={viz.interactiveSpec} sourceResolver={sourceResolver} />
             </div>
           ))}
         </div>
