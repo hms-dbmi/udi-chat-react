@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 
 interface ToolCallRendererProps {
   toolCall: FlatToolCall;
-  isPinned?: boolean;
+  isActive?: boolean;
   onSelectSuggestion?: (suggestion: string) => void;
   message?: Message;
   messageIndex?: number;
@@ -19,7 +19,7 @@ interface ToolCallRendererProps {
 
 export function ToolCallRenderer({
   toolCall,
-  isPinned,
+  isActive,
   onSelectSuggestion,
   message,
   messageIndex,
@@ -41,7 +41,7 @@ export function ToolCallRenderer({
       return (
         <VisualizationCard
           spec={spec}
-          isPinned={isPinned ?? false}
+          isActive={isActive ?? false}
           title={typeof args.title === 'string' ? args.title : undefined}
           messageIndex={messageIndex}
           toolCallIndex={toolCallIndex}

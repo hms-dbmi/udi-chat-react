@@ -64,7 +64,7 @@ function UDIChatInner({
     }
   }, [dataPackageStore, dataPackagePath, dataPackageProp, dataFieldDomainsProp, fetchOptions]);
 
-  // Auto-pin visualizations from new assistant messages (batched to avoid O(n^2) cascade)
+  // Auto-activate visualizations from new assistant messages (batched to avoid O(n^2) cascade)
   useEffect(() => {
     const state = dashboardStore.getState();
     const mbState = memoryBankStore.getState();
@@ -81,8 +81,8 @@ function UDIChatInner({
       if (message.role !== 'assistant') continue;
       const specs = extractAllUdiSpecsFromMessage(message);
       for (const { spec, toolCallIndex, title } of specs) {
-        const key = state.pinKey(i, toolCallIndex);
-        if (state.pinnedVisualizations.has(key)) continue;
+        const key = state.vizKey(i, toolCallIndex);
+        if (state.activeVisualizations.has(key)) continue;
         if (mbState.closedVisualizations.has(key)) continue;
         let userPromptIndex = i - 1;
         while (userPromptIndex >= 0 && messages[userPromptIndex]?.role !== 'user') {
@@ -100,8 +100,10 @@ function UDIChatInner({
       }
     }
     if (batch.length > 0) {
-      state.pinVisualizationBatch(batch);
+      state.addActiveVisualizationBatch(batch);
       for (const item of batch) {
+        // Event name kept as `visualization_pinned` for analytics continuity
+        // even though the in-code concept renamed pinning → active.
         trackEvent('visualization_pinned', {
           hasTitle: !!item.title,
           toolCallIndex: item.toolCallIndex,
@@ -121,14 +123,14 @@ function UDIChatInner({
   }, [messages, dataFiltersStore, dataPackageStore]);
 
   // Update spec filter structure when LLM FilterData selections change or when
-  // the set of pinned visualizations changes. Brush selections don't need to
+  // the set of active visualizations changes. Brush selections don't need to
   // trigger this — each viz's own UUID is already in the filter list (from
-  // pinnedVisualizations), so the filter structure is stable once set up.
+  // activeVisualizations), so the filter structure is stable once set up.
   const dataSelections = useDataFilters((s) => s.dataSelections);
-  const pinnedVisualizations = useDashboard((s) => s.pinnedVisualizations);
+  const activeVisualizations = useDashboard((s) => s.activeVisualizations);
   useEffect(() => {
     dashboardStore.getState().updateSpecFilters(dataFiltersStore, dataPackageStore);
-  }, [dataSelections, pinnedVisualizations, dashboardStore, dataFiltersStore, dataPackageStore]);
+  }, [dataSelections, activeVisualizations, dashboardStore, dataFiltersStore, dataPackageStore]);
 
   const queryConfig: QueryConfig = {
     apiBaseUrl,

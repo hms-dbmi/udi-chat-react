@@ -25,7 +25,7 @@ function DashboardHeader() {
 }
 
 export function DashboardPanel() {
-  const pinnedVisualizations = useDashboard((s) => s.pinnedVisualizations);
+  const activeVisualizations = useDashboard((s) => s.activeVisualizations);
   const vizSelections = useSelections((s) => s.selections);
   const dataSelections = useDataFilters((s) => s.dataSelections);
   const filterAllNullValues = useDashboard((s) => s.filterAllNullValues);
@@ -38,7 +38,7 @@ export function DashboardPanel() {
     [vizSelections, dataSelections],
   );
 
-  const entries = Array.from(pinnedVisualizations.entries()).reverse();
+  const entries = Array.from(activeVisualizations.entries()).reverse();
 
   const hasEntries = entries.length > 0;
 

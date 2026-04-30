@@ -1,9 +1,9 @@
 import { createStore } from 'zustand/vanilla';
-import type { PinnedVisualization } from './dashboardStore';
+import type { ActiveVisualization } from './dashboardStore';
 
 export interface MemoryBankState {
-  closedVisualizations: Map<string, PinnedVisualization>;
-  addToMemoryBank: (key: string, viz: PinnedVisualization) => void;
+  closedVisualizations: Map<string, ActiveVisualization>;
+  addToMemoryBank: (key: string, viz: ActiveVisualization) => void;
   removeFromMemoryBank: (key: string) => void;
   clearMemoryBank: () => void;
 }

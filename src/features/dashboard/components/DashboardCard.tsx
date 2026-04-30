@@ -23,7 +23,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import type { PinnedVisualization } from '../stores/dashboardStore';
+import type { ActiveVisualization } from '../stores/dashboardStore';
 import {
   useDashboard,
   useDashboardStore,
@@ -37,7 +37,7 @@ import { cn } from '@/lib/utils';
 
 interface DashboardCardProps {
   vizKey: string;
-  viz: PinnedVisualization;
+  viz: ActiveVisualization;
   selections: DataSelections;
 }
 
@@ -75,7 +75,7 @@ export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
   }, [selections, viz.uuid]);
 
   const handleClose = useCallback(() => {
-    dashboardStore.getState().unpinVisualization(vizKey, memoryBankStore);
+    dashboardStore.getState().closeVisualization(vizKey, memoryBankStore);
     trackEvent('visualization_closed', { hasTitle: !!viz.title });
   }, [dashboardStore, vizKey, memoryBankStore, trackEvent, viz.title]);
 

@@ -206,77 +206,77 @@ describe('extractAllUdiSpecsFromMessage', () => {
   });
 });
 
-describe('dashboardStore — pinning / unpinning', () => {
-  it('pinKey formats indices as "index-toolCallIndex"', () => {
+describe('dashboardStore — activating / closing', () => {
+  it('vizKey formats indices as "index-toolCallIndex"', () => {
     const store = createDashboardStore();
-    expect(store.getState().pinKey(2, 3)).toBe('2-3');
+    expect(store.getState().vizKey(2, 3)).toBe('2-3');
   });
 
-  it('pinVisualization stores the spec with a generated uuid', () => {
+  it('addActiveVisualization stores the spec with a generated uuid', () => {
     const store = createDashboardStore();
     const spec = makeSpec();
     store
       .getState()
-      .pinVisualization(0, 0, spec, 'show age', { donors: ['age_value', 'weight_value'] });
-    const viz = store.getState().pinnedVisualizations.get('0-0');
+      .addActiveVisualization(0, 0, spec, 'show age', { donors: ['age_value', 'weight_value'] });
+    const viz = store.getState().activeVisualizations.get('0-0');
     expect(viz?.uuid).toMatch(/^udi_/);
     expect(viz?.spec).toBe(spec);
     expect(viz?.interactiveSpec).not.toBe(spec);
   });
 
-  it('pinVisualizationBatch inserts every item and is a no-op for empty arrays', () => {
+  it('addActiveVisualizationBatch inserts every item and is a no-op for empty arrays', () => {
     const store = createDashboardStore();
-    const before = store.getState().pinnedVisualizations;
-    store.getState().pinVisualizationBatch([]);
-    expect(store.getState().pinnedVisualizations).toBe(before);
+    const before = store.getState().activeVisualizations;
+    store.getState().addActiveVisualizationBatch([]);
+    expect(store.getState().activeVisualizations).toBe(before);
 
-    store.getState().pinVisualizationBatch([
+    store.getState().addActiveVisualizationBatch([
       { index: 0, toolCallIndex: 0, spec: makeSpec(), userPrompt: 'a', sourceFields: null },
       { index: 1, toolCallIndex: 0, spec: makeSpec(), userPrompt: 'b', sourceFields: null },
     ]);
-    expect(store.getState().pinnedVisualizations.size).toBe(2);
+    expect(store.getState().activeVisualizations.size).toBe(2);
   });
 
-  it('isPinned reflects the current Map contents', () => {
+  it('isActive reflects the current Map contents', () => {
     const store = createDashboardStore();
-    store.getState().pinVisualization(0, 0, makeSpec(), '', null);
-    expect(store.getState().isPinned('0-0')).toBe(true);
-    expect(store.getState().isPinned('9-9')).toBe(false);
+    store.getState().addActiveVisualization(0, 0, makeSpec(), '', null);
+    expect(store.getState().isActive('0-0')).toBe(true);
+    expect(store.getState().isActive('9-9')).toBe(false);
   });
 
-  it('unpinVisualization without a memoryBankStore just removes the entry', () => {
+  it('closeVisualization without a memoryBankStore just removes the entry', () => {
     const store = createDashboardStore();
-    store.getState().pinVisualization(0, 0, makeSpec(), '', null);
-    store.getState().unpinVisualization('0-0');
-    expect(store.getState().pinnedVisualizations.has('0-0')).toBe(false);
+    store.getState().addActiveVisualization(0, 0, makeSpec(), '', null);
+    store.getState().closeVisualization('0-0');
+    expect(store.getState().activeVisualizations.has('0-0')).toBe(false);
   });
 
-  it('unpinVisualization moves the entry to the memoryBank when one is provided', () => {
+  it('closeVisualization moves the entry to the memoryBank when one is provided', () => {
     const dashboard = createDashboardStore();
     const memoryBank = createMemoryBankStore();
-    dashboard.getState().pinVisualization(0, 0, makeSpec(), '', null);
-    dashboard.getState().unpinVisualization('0-0', memoryBank);
-    expect(dashboard.getState().pinnedVisualizations.has('0-0')).toBe(false);
+    dashboard.getState().addActiveVisualization(0, 0, makeSpec(), '', null);
+    dashboard.getState().closeVisualization('0-0', memoryBank);
+    expect(dashboard.getState().activeVisualizations.has('0-0')).toBe(false);
     expect(memoryBank.getState().closedVisualizations.has('0-0')).toBe(true);
   });
 
-  it('restoreFromMemoryBank re-pins and removes from the bank', () => {
+  it('restoreFromMemoryBank re-activates and removes from the bank', () => {
     const dashboard = createDashboardStore();
     const memoryBank = createMemoryBankStore();
-    dashboard.getState().pinVisualization(0, 0, makeSpec(), '', null);
-    dashboard.getState().unpinVisualization('0-0', memoryBank);
+    dashboard.getState().addActiveVisualization(0, 0, makeSpec(), '', null);
+    dashboard.getState().closeVisualization('0-0', memoryBank);
     dashboard.getState().restoreFromMemoryBank('0-0', memoryBank);
-    expect(dashboard.getState().pinnedVisualizations.has('0-0')).toBe(true);
+    expect(dashboard.getState().activeVisualizations.has('0-0')).toBe(true);
     expect(memoryBank.getState().closedVisualizations.has('0-0')).toBe(false);
   });
 
-  it('clearAllVisualizations empties pinned, expanded, and table-view state', () => {
+  it('clearAllVisualizations empties active, expanded, and table-view state', () => {
     const store = createDashboardStore();
-    store.getState().pinVisualization(0, 0, makeSpec(), '', null);
+    store.getState().addActiveVisualization(0, 0, makeSpec(), '', null);
     store.getState().toggleExpanded('0-0');
     store.getState().toggleTableView('0-0');
     store.getState().clearAllVisualizations();
-    expect(store.getState().pinnedVisualizations.size).toBe(0);
+    expect(store.getState().activeVisualizations.size).toBe(0);
     expect(store.getState().expandedVisualizations.size).toBe(0);
     expect(store.getState().tableViewKeys.size).toBe(0);
   });
@@ -310,32 +310,32 @@ describe('dashboardStore — UI toggles', () => {
   });
 });
 
-describe('dashboardStore — updatePinnedVisualizationSpec', () => {
+describe('dashboardStore — updateActiveVisualizationSpec', () => {
   it('replaces the spec and recomputes the interactive spec for the same uuid', () => {
     const store = createDashboardStore();
     store
       .getState()
-      .pinVisualization(0, 0, makeSpec(), '', { donors: ['age_value', 'weight_value'] });
-    const original = store.getState().pinnedVisualizations.get('0-0')!;
+      .addActiveVisualization(0, 0, makeSpec(), '', { donors: ['age_value', 'weight_value'] });
+    const original = store.getState().activeVisualizations.get('0-0')!;
     const newSpec = makeSpec({
       representation: {
         mark: 'bar',
         mapping: [{ encoding: 'x', field: 'organ', type: 'nominal' }],
       },
     });
-    store.getState().updatePinnedVisualizationSpec('0-0', newSpec, { donors: ['organ'] });
-    const after = store.getState().pinnedVisualizations.get('0-0')!;
+    store.getState().updateActiveVisualizationSpec('0-0', newSpec, { donors: ['organ'] });
+    const after = store.getState().activeVisualizations.get('0-0')!;
     expect(after.uuid).toBe(original.uuid);
     expect(after.spec).toBe(newSpec);
     const rep = after.interactiveSpec.representation as { select: { name: string } };
     expect(rep.select.name).toBe(original.uuid);
   });
 
-  it('is a no-op when the key is not pinned', () => {
+  it('is a no-op when the key is not active', () => {
     const store = createDashboardStore();
-    const before = store.getState().pinnedVisualizations;
-    store.getState().updatePinnedVisualizationSpec('0-0', makeSpec(), null);
-    expect(store.getState().pinnedVisualizations).toBe(before);
+    const before = store.getState().activeVisualizations;
+    store.getState().updateActiveVisualizationSpec('0-0', makeSpec(), null);
+    expect(store.getState().activeVisualizations).toBe(before);
   });
 });
 
@@ -367,7 +367,7 @@ describe('dashboardStore — cross-store filter propagation', () => {
     return dp;
   }
 
-  it('getFilterIds combines pinned viz uuids with valid external selection keys', () => {
+  it('getFilterIds combines active viz uuids with valid external selection keys', () => {
     const dashboard = createDashboardStore();
     const dataFilters = createDataFiltersStore();
     const dataPackage = buildDataPackageStoreWith([
@@ -382,8 +382,8 @@ describe('dashboardStore — cross-store filter propagation', () => {
 
     dashboard
       .getState()
-      .pinVisualization(0, 0, makeSpec(), '', { donors: ['age_value', 'weight_value'] });
-    const pinned = dashboard.getState().pinnedVisualizations.get('0-0')!;
+      .addActiveVisualization(0, 0, makeSpec(), '', { donors: ['age_value', 'weight_value'] });
+    const active = dashboard.getState().activeVisualizations.get('0-0')!;
 
     dataFilters.getState().setDataSelection('message-filter-1-0', {
       dataSourceKey: 'donors',
@@ -393,7 +393,7 @@ describe('dashboardStore — cross-store filter propagation', () => {
 
     // Use the real dataPackage validators
     const ids = dashboard.getState().getFilterIds(dataFilters);
-    expect(ids).toContain(pinned.uuid);
+    expect(ids).toContain(active.uuid);
     expect(ids).toContain('message-filter-1-0');
     // Verify alphabetical sort and dedupe are applied.
     const sorted = [...ids].sort();
@@ -408,10 +408,10 @@ describe('dashboardStore — cross-store filter propagation', () => {
 
     dashboard
       .getState()
-      .pinVisualization(0, 0, makeSpec(), '', { donors: ['age_value', 'weight_value'] });
+      .addActiveVisualization(0, 0, makeSpec(), '', { donors: ['age_value', 'weight_value'] });
     dashboard.getState().updateSpecFilters(dataFilters, dataPackage);
 
-    const viz = dashboard.getState().pinnedVisualizations.get('0-0')!;
+    const viz = dashboard.getState().activeVisualizations.get('0-0')!;
     const transformation = (viz.interactiveSpec as { transformation: Array<{ filter: string }> })
       .transformation;
     const filterStrings = transformation.map((t) => t.filter).filter(Boolean);
@@ -426,11 +426,11 @@ describe('dashboardStore — cross-store filter propagation', () => {
 
     dashboard
       .getState()
-      .pinVisualization(0, 0, makeSpec(), '', { donors: ['age_value', 'weight_value'] });
+      .addActiveVisualization(0, 0, makeSpec(), '', { donors: ['age_value', 'weight_value'] });
     dashboard.getState().setFilterAllNullValues(false);
     dashboard.getState().updateSpecFilters(dataFilters, dataPackage);
 
-    const viz = dashboard.getState().pinnedVisualizations.get('0-0')!;
+    const viz = dashboard.getState().activeVisualizations.get('0-0')!;
     const transformation = (viz.interactiveSpec as { transformation: Array<{ filter?: unknown }> })
       .transformation;
     // The null-filter transformations use `filter: string`. None should remain.

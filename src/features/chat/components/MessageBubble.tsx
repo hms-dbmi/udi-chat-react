@@ -20,8 +20,8 @@ const TOOL_CALL_LABELS: Record<string, string> = {
 };
 
 export function MessageBubble({ message, messageIndex, onSelectSuggestion }: MessageBubbleProps) {
-  const pinKey = useDashboard((s) => s.pinKey);
-  const isPinned = useDashboard((s) => s.isPinned);
+  const vizKey = useDashboard((s) => s.vizKey);
+  const isActive = useDashboard((s) => s.isActive);
   const isUser = message.role === 'user';
   const toolCalls = message.tool_calls ?? [];
 
@@ -40,7 +40,7 @@ export function MessageBubble({ message, messageIndex, onSelectSuggestion }: Mes
         {toolCalls.length === 1 && (
           <ToolCallRenderer
             toolCall={toolCalls[0].function}
-            isPinned={isPinned(pinKey(messageIndex, 0))}
+            isActive={isActive(vizKey(messageIndex, 0))}
             onSelectSuggestion={onSelectSuggestion}
             message={message}
             messageIndex={messageIndex}
@@ -61,7 +61,7 @@ export function MessageBubble({ message, messageIndex, onSelectSuggestion }: Mes
               <TabsContent key={i} value={String(i)}>
                 <ToolCallRenderer
                   toolCall={tc.function}
-                  isPinned={isPinned(pinKey(messageIndex, i))}
+                  isActive={isActive(vizKey(messageIndex, i))}
                   onSelectSuggestion={onSelectSuggestion}
                   message={message}
                   messageIndex={messageIndex}
