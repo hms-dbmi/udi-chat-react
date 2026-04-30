@@ -68,7 +68,9 @@ export function FilterToolbar() {
       if (!sel.selection || Object.keys(sel.selection).length === 0) return false;
       if (Object.values(sel.selection).every((v) => Array.isArray(v) && v.length === 0))
         return false;
-      if (!key.startsWith('message-filter-')) return false;
+      // Both LLM-originated `message-filter-*` entries and viz-brush mirrors
+      // surface here; everything else (other internal filters) is excluded.
+      if (!key.startsWith('message-filter-') && !key.startsWith(BRUSH_KEY_PREFIX)) return false;
       if (sel.type === 'interval') {
         return (
           validate.isValidIntervalFilter(sel.dataSourceKey, Object.keys(sel.selection)[0])

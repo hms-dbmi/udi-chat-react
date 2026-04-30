@@ -38,6 +38,12 @@ export function FilterComponent({
   if (!dataSelection || !filterType) return null;
 
   const allFields = Object.keys(dataSelection.selection ?? {});
+  // Brush-derived widgets shouldn't expose entity/field dropdowns: the
+  // brush is bound to a specific viz, and rebinding would silently
+  // detach the chip from its source. Slider/value adjustments still
+  // propagate via setDataSelection + the dataSelections→selectionsStore
+  // sync in UDIChat.
+  const effectiveTweakable = filterKey.startsWith('viz-brush-') ? false : tweakable;
 
   if (filterType === 'interval') {
     return (
@@ -47,7 +53,7 @@ export function FilterComponent({
             key={idx}
             dataSelection={dataSelection}
             fieldIndex={idx}
-            tweakable={tweakable}
+            tweakable={effectiveTweakable}
             filterKey={filterKey}
           />
         ))}
@@ -60,7 +66,7 @@ export function FilterComponent({
       <div className="p-2">
         <PointFilterComponent
           dataSelection={dataSelection}
-          tweakable={tweakable}
+          tweakable={effectiveTweakable}
           filterKey={filterKey}
         />
       </div>

@@ -103,12 +103,13 @@ export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
     (newSelections: DataSelections) => {
       const plain = JSON.parse(JSON.stringify(newSelections)) as DataSelections;
       selectionsStore.getState().updateSelections(plain);
-      // Mirror this viz's brush into dataFiltersStore so it appears as a chip
-      // in the FilterToolbar. Key with a `viz-brush-` prefix so it stays
-      // distinct from LLM-originated `message-filter-*` entries and from
-      // other internalDataSelections. Cross-chart filtering still works via
-      // the Pinia DataSourcesStore + named-filter entries in each viz's
-      // interactiveSpec.transformation — this mirror is display-only.
+      // Mirror this viz's brush into dataFiltersStore.dataSelections under a
+      // `viz-brush-` key so it surfaces as a FilterToolbar chip AND drives a
+      // user-side FilterComponent widget in the chat (the synthetic message
+      // is generated from this entry by MessageList). Cross-chart filtering
+      // still flows through the Pinia DataSourcesStore + named-filter
+      // entries in each viz's interactiveSpec.transformation; this mirror
+      // is the display-and-adjust copy.
       const own = plain[viz.uuid];
       const brushKey = `viz-brush-${viz.uuid}`;
       const mirrorValue =
@@ -123,7 +124,7 @@ export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
               type: 'interval' as const,
               selection: {} as Record<string, unknown[]>,
             };
-      dataFiltersStore.getState().updateInternalDataSelections({ [brushKey]: mirrorValue });
+      dataFiltersStore.getState().setDataSelection(brushKey, mirrorValue);
     },
     [selectionsStore, dataFiltersStore, viz.uuid],
   );
