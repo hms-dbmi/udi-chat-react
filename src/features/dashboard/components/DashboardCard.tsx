@@ -74,6 +74,21 @@ export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
     return JSON.parse(JSON.stringify(filtered)) as DataSelections;
   }, [selections, viz.uuid]);
 
+  // Track whether this viz currently owns a brush so we can detect a
+  // clear-transition (own selection going from present → absent) and
+  // bump a remount counter. Vega manages its own brush rectangle
+  // internally, so when the FilterToolbar X-button clears
+  // selectionsStore[viz.uuid] there's no native way to ask the chart
+  // to drop the rectangle. Forcing UDIVis to remount via a key change
+  // is the simplest reliable reset.
+  const ownHasBrush = selections[viz.uuid] != null;
+  const [trackedHasBrush, setTrackedHasBrush] = useState(false);
+  const [brushClearedCount, setBrushClearedCount] = useState(0);
+  if (ownHasBrush !== trackedHasBrush) {
+    setTrackedHasBrush(ownHasBrush);
+    if (!ownHasBrush) setBrushClearedCount((c) => c + 1);
+  }
+
   const handleClose = useCallback(() => {
     dashboardStore.getState().unpinVisualization(vizKey, memoryBankStore);
   }, [dashboardStore, vizKey, memoryBankStore]);
@@ -234,7 +249,7 @@ export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
       )}
       <CardContent className="p-2">
         <UDIVis
-          key={isTableView ? `table-${specKey}` : specKey}
+          key={`${isTableView ? `table-${specKey}` : specKey}-c${brushClearedCount}`}
           spec={isTableView ? tableSpec : plainSpec}
           selections={externalSelections}
           sourceResolver={sourceResolver}
