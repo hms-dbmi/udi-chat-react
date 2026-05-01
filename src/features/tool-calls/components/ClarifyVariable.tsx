@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Send } from 'lucide-react';
 import type { ClarifyVariableArgs } from '../types';
 import { MarkdownText } from '@/components/MarkdownText';
@@ -121,15 +122,22 @@ export function ClarifyVariable({
             }
           }}
         />
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 shrink-0"
-          disabled={submitted || !freeText.trim()}
-          onClick={submitFreeText}
-        >
-          <Send className="h-3.5 w-3.5" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0"
+                disabled={submitted || !freeText.trim()}
+                onClick={submitFreeText}
+              />
+            }
+          >
+            <Send className="h-3.5 w-3.5" />
+          </TooltipTrigger>
+          <TooltipContent>Send response</TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );
