@@ -98,9 +98,20 @@ export function useMessageListScroll(messages: Message[]): MessageListScrollResu
 
     justAddedMessageRef.current = true;
     const frame = requestAnimationFrame(() => {
+      const viewport = viewportRef.current;
       const items = contentRef.current?.querySelectorAll<HTMLElement>('[data-message]');
       const last = items?.[items.length - 1];
-      last?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Compute the absolute scrollTop that aligns the last message flush
+      // with the viewport top, then scroll only our own viewport. Using
+      // Element.scrollIntoView here would bubble up and drag the host page
+      // along, which is what was causing embedding sites to scroll on every
+      // new message.
+      if (viewport && last) {
+        const viewportRect = viewport.getBoundingClientRect();
+        const lastRect = last.getBoundingClientRect();
+        const target = viewport.scrollTop + (lastRect.top - viewportRect.top);
+        viewport.scrollTo({ top: target, behavior: 'smooth' });
+      }
       requestAnimationFrame(() => {
         justAddedMessageRef.current = false;
       });
