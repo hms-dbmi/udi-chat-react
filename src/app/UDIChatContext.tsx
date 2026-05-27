@@ -16,10 +16,6 @@ import {
   type DataPackageState,
 } from '@/features/data-package/stores/dataPackageStore';
 import {
-  createSelectionsStore,
-  type SelectionsState,
-} from '@/features/dashboard/stores/selectionsStore';
-import {
   createDataFiltersStore,
   type DataFiltersState,
 } from '@/features/dashboard/stores/dataFiltersStore';
@@ -33,7 +29,6 @@ interface UDIChatStores {
   conversation: StoreApi<ConversationState>;
   dashboard: StoreApi<DashboardState>;
   dataPackage: StoreApi<DataPackageState>;
-  selections: StoreApi<SelectionsState>;
   dataFilters: StoreApi<DataFiltersState>;
   memoryBank: StoreApi<MemoryBankState>;
   global: StoreApi<GlobalState>;
@@ -48,7 +43,6 @@ export function UDIChatProvider({ children }: { children: ReactNode }) {
       conversation: createConversationStore(),
       dashboard: createDashboardStore(),
       dataPackage: createDataPackageStore(),
-      selections: createSelectionsStore(),
       dataFilters: createDataFiltersStore(),
       memoryBank: createMemoryBankStore(),
       global: createGlobalStore(),
@@ -85,14 +79,6 @@ export function useDataPackage<T>(selector: (state: DataPackageState) => T): T {
 
 export function useDataPackageStore(): StoreApi<DataPackageState> {
   return useStores().dataPackage;
-}
-
-export function useSelections<T>(selector: (state: SelectionsState) => T): T {
-  return useStore(useStores().selections, selector);
-}
-
-export function useSelectionsStore(): StoreApi<SelectionsState> {
-  return useStores().selections;
 }
 
 export function useDataFilters<T>(selector: (state: DataFiltersState) => T): T {

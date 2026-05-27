@@ -1,11 +1,4 @@
-import { useMemo } from 'react';
-import {
-  useDashboard,
-  useSelections,
-  useDashboardStore,
-  useDataFilters,
-  useGlobal,
-} from '@/app/UDIChatContext';
+import { useDashboard, useDashboardStore, useDataFilters, useGlobal } from '@/app/UDIChatContext';
 import { DashboardCard } from './DashboardCard';
 import { WelcomeSplash } from './WelcomeSplash';
 import { FilterToolbar } from './FilterToolbar';
@@ -27,18 +20,15 @@ function DashboardHeader() {
 
 export function DashboardPanel() {
   const activeVisualizations = useDashboard((s) => s.activeVisualizations);
-  const vizSelections = useSelections((s) => s.selections);
   const dataSelections = useDataFilters((s) => s.dataSelections);
   const filterAllNullValues = useDashboard((s) => s.filterAllNullValues);
   const debugMode = useGlobal((s) => s.debugMode);
   const dashboardStore = useDashboardStore();
 
-  // Merge viz brush selections with FilterData selections so UDIVis can
-  // resolve both kinds of named filter references in transformations.
-  const mergedSelections = useMemo(
-    () => ({ ...vizSelections, ...dataSelections }),
-    [vizSelections, dataSelections],
-  );
+  // Brush selections live in the shared Pinia DataSourcesStore — UDIVis's
+  // signal handlers write them there directly. We only pass LLM-set filters
+  // via the `selections` prop; UDIVis merges with Pinia state internally.
+  const mergedSelections = dataSelections;
 
   const entries = Array.from(activeVisualizations.entries()).reverse();
 
