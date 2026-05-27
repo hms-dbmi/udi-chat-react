@@ -17,7 +17,6 @@ import type { ActiveVisualization } from '../stores/dashboardStore';
 import {
   useDashboard,
   useDashboardStore,
-  useSelectionsStore,
   useMemoryBankStore,
   useDataPackage,
   useGlobal,
@@ -34,7 +33,6 @@ interface DashboardCardProps {
 
 export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
   const dashboardStore = useDashboardStore();
-  const selectionsStore = useSelectionsStore();
   const memoryBankStore = useMemoryBankStore();
   const sourceResolver = useDataPackage((s) => s.sourceResolver);
   const trackEvent = useTracker();
@@ -70,18 +68,9 @@ export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
     trackEvent('visualization_closed', { hasTitle: !!viz.title });
   }, [dashboardStore, vizKey, memoryBankStore, trackEvent, viz.title]);
 
-  const handleSelectionChange = useCallback(
-    (newSelections: DataSelections) => {
-      const plain = JSON.parse(JSON.stringify(newSelections)) as DataSelections;
-      // Brushes propagate through selectionsStore only. We intentionally do
-      // NOT write them into dataFiltersStore.internalDataSelections anymore,
-      // so brushes don't appear as filter chips in the toolbar. Cross-chart
-      // filtering still works via the shared Pinia DataSourcesStore +
-      // named-filter entries in each viz's interactiveSpec.transformation.
-      selectionsStore.getState().updateSelections(plain);
-    },
-    [selectionsStore],
-  );
+  // Brushes flow directly into the shared Pinia DataSourcesStore via
+  // UDIVis's Vega signal handlers, so we no longer mirror them to a
+  // React store — no `onSelectionChange` handler needed here.
 
   const [showTweak, setShowTweak] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -245,7 +234,6 @@ export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
           spec={isTableView ? tableSpec : plainSpec}
           selections={externalSelections}
           sourceResolver={sourceResolver}
-          onSelectionChange={handleSelectionChange}
         />
       </CardContent>
     </Card>

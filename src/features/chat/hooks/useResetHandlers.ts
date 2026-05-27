@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
+import { clearAllSelections } from 'udi-toolkit/react';
 import {
   useConversationStore,
   useDashboardStore,
-  useSelectionsStore,
   useMemoryBankStore,
   useDataFiltersStore,
   useTracker,
@@ -16,7 +16,6 @@ import {
 export function useResetHandlers(): { handleReset: () => void } {
   const conversationStore = useConversationStore();
   const dashboardStore = useDashboardStore();
-  const selectionsStore = useSelectionsStore();
   const memoryBankStore = useMemoryBankStore();
   const dataFiltersStore = useDataFiltersStore();
   const trackEvent = useTracker();
@@ -25,18 +24,14 @@ export function useResetHandlers(): { handleReset: () => void } {
     const conversationLength = conversationStore.getState().messages.length;
     conversationStore.getState().newConversation();
     dashboardStore.getState().clearAllVisualizations();
-    selectionsStore.getState().clearSelections();
+    // Brushes auto-clear via Vega when charts unmount above, but the
+    // Pinia bookkeeping entries linger — drop them so they don't
+    // accumulate across resets.
+    void clearAllSelections();
     memoryBankStore.getState().clearMemoryBank();
     dataFiltersStore.getState().resetFilters();
     trackEvent('conversation_reset', { conversationLength });
-  }, [
-    conversationStore,
-    dashboardStore,
-    selectionsStore,
-    memoryBankStore,
-    dataFiltersStore,
-    trackEvent,
-  ]);
+  }, [conversationStore, dashboardStore, memoryBankStore, dataFiltersStore, trackEvent]);
 
   return { handleReset };
 }
