@@ -27,6 +27,8 @@ export { createSelectionsStore, type SelectionsState } from './stores/selections
 
 export { createMemoryBankStore, type MemoryBankState } from './stores/memoryBankStore';
 
+export { useBrushFilters, type BrushFilter } from './hooks/useBrushFilters';
+
 export type {
   DownloadAction,
   DownloadActionContext,
