@@ -70,7 +70,7 @@ export function ChatHeaderBar({
   );
 
   return (
-    <div className="flex items-center justify-between px-3 py-2">
+    <div className="flex items-center justify-between px-3 py-2 bg-fuchsia-500 text-white">
       <div className="flex items-center gap-1">
         {showDrawerToggle && (
           <Tooltip>
