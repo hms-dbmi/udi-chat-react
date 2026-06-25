@@ -50,23 +50,31 @@ export function IntervalFilterComponent({
     };
   }, [getDomainForField, entity, field]);
 
-  const storeRange = useMemo(() => {
-    const arr = dataSelection.selection?.[field] as number[] | undefined;
-    if (!arr || arr.length < 2) return [rangeMinMax.min, rangeMinMax.max];
-    return [arr[0], arr[1]];
-  }, [dataSelection.selection, field, rangeMinMax]);
+  const storeArr = dataSelection.selection?.[field] as number[] | undefined;
+  const hasStoreRange = !!storeArr && storeArr.length >= 2;
+  const storeMin = hasStoreRange ? storeArr[0] : rangeMinMax.min;
+  const storeMax = hasStoreRange ? storeArr[1] : rangeMinMax.max;
 
   // Local state for responsive slider; committed to store once per animation
   // frame so dependent views update live without flooding the store on every
   // pointermove.
-  const [localRange, setLocalRange] = useState(storeRange);
+  const [localRange, setLocalRange] = useState<number[]>([storeMin, storeMax]);
+  const [syncedBounds, setSyncedBounds] = useState<[number, number]>([storeMin, storeMax]);
   const pendingRangeRef = useRef<number[] | null>(null);
   const commitFrameRef = useRef<number | null>(null);
 
-  // Sync local state when store range changes externally (e.g. reset, session load)
-  useEffect(() => {
-    setLocalRange(storeRange);
-  }, [storeRange]);
+  // Sync local state when the stored range changes externally (reset, session
+  // load, brush edits on the chart). Adjust during render — React's
+  // "information from previous renders" pattern, as used in DashboardCard —
+  // keyed on the primitive bounds rather than the selection object:
+  // dataSelection gets replaced with an equal-valued object on unrelated store
+  // updates, and re-mirroring that churn through an effect would hand the
+  // Slider a new value array every render, driving base-ui's thumb effect into
+  // an infinite update loop (Maximum update depth exceeded).
+  if (syncedBounds[0] !== storeMin || syncedBounds[1] !== storeMax) {
+    setSyncedBounds([storeMin, storeMax]);
+    setLocalRange([storeMin, storeMax]);
+  }
 
   // Cancel any pending frame on unmount so we don't touch the store after teardown.
   useEffect(() => {
