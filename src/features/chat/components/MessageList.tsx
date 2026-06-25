@@ -2,7 +2,7 @@ import { Fragment, useMemo } from 'react';
 import { ArrowDown, Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { useConversation, useDataFilters, useGlobal } from '@/app/UDIChatContext';
+import { useConversation, useDashboard, useDataFilters, useGlobal } from '@/app/UDIChatContext';
 import { generateFilterMessage } from '@/features/dashboard';
 import { MessageBubble } from './MessageBubble';
 import { useMessageListScroll } from '../hooks/useMessageListScroll';
@@ -23,6 +23,7 @@ export function MessageList({
 }: MessageListProps) {
   const messages = useConversation((s) => s.messages);
   const dataSelections = useDataFilters((s) => s.dataSelections);
+  const activeVisualizations = useDashboard((s) => s.activeVisualizations);
   const debugMode = useGlobal((s) => s.debugMode);
   const { contentRef, firstUnreadIndex, scrollToBottom } = useMessageListScroll(messages);
 
@@ -39,6 +40,42 @@ export function MessageList({
     }
     return out;
   }, [dataSelections]);
+
+  // Anchor each brush widget to the conversation position of the
+  // visualization that produced it, so adjustment widgets stay inline with
+  // their source viz instead of all collecting at the bottom of the list.
+  const brushMessageAnchors = useMemo(() => {
+    const uuidToVizIndex = new Map<string, number>();
+    for (const viz of activeVisualizations.values()) {
+      uuidToVizIndex.set(viz.uuid, viz.index);
+    }
+    const byIndex = new Map<number, { msg: Message; i: number }[]>();
+    const orphans: { msg: Message; i: number }[] = [];
+    brushMessages.forEach((msg, i) => {
+      const uuid = msg.linkedVisFilterId?.slice(BRUSH_KEY_PREFIX.length) ?? '';
+      const vizIndex = uuidToVizIndex.get(uuid);
+      const entry = { msg, i };
+      if (vizIndex == null) {
+        orphans.push(entry);
+        return;
+      }
+      const bucket = byIndex.get(vizIndex);
+      if (bucket) bucket.push(entry);
+      else byIndex.set(vizIndex, [entry]);
+    });
+    return { byIndex, orphans };
+  }, [brushMessages, activeVisualizations]);
+
+  // Negative sentinel index: not a real conversation position, so it won't
+  // collide with vizKey lookups for active visualizations.
+  const renderBrush = ({ msg, i }: { msg: Message; i: number }) => (
+    <MessageBubble
+      key={`brush-${msg.linkedVisFilterId ?? i}`}
+      message={msg}
+      messageIndex={-1 - i}
+      onSelectSuggestion={onSelectSuggestion}
+    />
+  );
 
   const displayed = messages.filter((m) => m.role !== 'system' || (debugMode && showSystemPrompts));
 
@@ -57,19 +94,11 @@ export function MessageList({
                   messageIndex={realIndex}
                   onSelectSuggestion={onSelectSuggestion}
                 />
+                {brushMessageAnchors.byIndex.get(realIndex)?.map(renderBrush)}
               </Fragment>
             );
           })}
-          {brushMessages.map((msg, i) => (
-            <MessageBubble
-              key={`brush-${msg.linkedVisFilterId ?? i}`}
-              message={msg}
-              // Negative sentinel: not a real conversation index, won't
-              // collide with vizKey lookups for active visualizations.
-              messageIndex={-1 - i}
-              onSelectSuggestion={onSelectSuggestion}
-            />
-          ))}
+          {brushMessageAnchors.orphans.map(renderBrush)}
           {isLoading && (
             <div className="flex justify-start">
               <div className="bg-muted rounded-lg px-4 py-3">
