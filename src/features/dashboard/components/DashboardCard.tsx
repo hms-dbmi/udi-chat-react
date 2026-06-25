@@ -73,15 +73,30 @@ export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
   const handleSelectionChange = useCallback(
     (newSelections: DataSelections) => {
       const plain = JSON.parse(JSON.stringify(newSelections)) as DataSelections;
-      // Brushes propagate through selectionsStore only. We intentionally do
-      // NOT write them into dataFiltersStore.internalDataSelections anymore,
-      // so brushes don't appear as filter chips in the toolbar. Cross-chart
-      // filtering still works via the shared Pinia DataSourcesStore +
-      // named-filter entries in each viz's interactiveSpec.transformation.
+      // Brushes propagate through selectionsStore, keyed by this viz's uuid.
+      // The filter toolbar and chat adjustment widgets read brush selections
+      // from there (see useBrushFilters). Cross-chart filtering still works
+      // via the shared Pinia DataSourcesStore + named-filter entries in each
+      // viz's interactiveSpec.transformation.
       selectionsStore.getState().updateSelections(plain);
     },
     [selectionsStore],
   );
+
+  // When this viz's own brush is cleared externally (e.g. removing its chip in
+  // the filter toolbar), UDIVis offers no programmatic way to drop a rendered
+  // brush rectangle. Remounting the component via a key change is the simplest
+  // reliable reset. We track the brush's presence in state and bump the key on
+  // the true→false transition only, so an active brush — or another viz's
+  // brush — never triggers a remount loop. This uses React's "adjust state
+  // during render" pattern rather than an effect.
+  const ownHasBrush = selections[viz.uuid]?.selection != null;
+  const [trackedHasBrush, setTrackedHasBrush] = useState(ownHasBrush);
+  const [brushResetKey, setBrushResetKey] = useState(0);
+  if (ownHasBrush !== trackedHasBrush) {
+    setTrackedHasBrush(ownHasBrush);
+    if (!ownHasBrush) setBrushResetKey((k) => k + 1);
+  }
 
   const [showTweak, setShowTweak] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -241,7 +256,7 @@ export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
       <CardContent className="p-2">
         <UDIVis
           className="block w-full"
-          key={isTableView ? `table-${specKey}` : specKey}
+          key={`${isTableView ? `table-${specKey}` : specKey}-${brushResetKey}`}
           spec={isTableView ? tableSpec : plainSpec}
           selections={externalSelections}
           sourceResolver={sourceResolver}

@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { useDataFilters, useDataPackageStore } from '@/app/UDIChatContext';
+import { useDataFilters, useDataPackageStore, useSelectionsStore } from '@/app/UDIChatContext';
+import { useBrushFilters } from '@/features/dashboard';
 import type { DataSelection } from '@/features/dashboard';
 
 interface ChipInfo {
@@ -12,6 +13,8 @@ interface ChipInfo {
   type: string;
   label: string;
   value: string;
+  /** Set when the chip originates from a visualization brush; the value is the source viz uuid. */
+  brushUuid?: string;
 }
 
 function formatSelectionFields(sel: DataSelection): { label: string; value: string }[] {
@@ -40,9 +43,28 @@ function formatSelectionFields(sel: DataSelection): { label: string; value: stri
 
 export function FilterToolbar() {
   const dataPackageStore = useDataPackageStore();
+  const selectionsStore = useSelectionsStore();
   const dataSelections = useDataFilters((s) => s.dataSelections);
   const internalDataSelections = useDataFilters((s) => s.internalDataSelections);
   const clearFilter = useDataFilters((s) => s.clearFilter);
+  const brushFilters = useBrushFilters();
+
+  const clearChip = useCallback(
+    (chip: ChipInfo) => {
+      if (chip.brushUuid) {
+        // Clearing the brush's selectionsStore entry is the authoritative way
+        // to drop the underlying visualization selection; DashboardCard
+        // observes the cleared brush and remounts the source viz so its
+        // rendered selection (e.g. a brush rectangle) clears too.
+        const { selections, updateSelections } = selectionsStore.getState();
+        const current = selections[chip.brushUuid];
+        if (current) updateSelections({ [chip.brushUuid]: { ...current, selection: null } });
+        return;
+      }
+      clearFilter(chip.id);
+    },
+    [selectionsStore, clearFilter],
+  );
 
   const chips = useMemo<ChipInfo[]>(() => {
     const validate = {
@@ -87,8 +109,23 @@ export function FilterToolbar() {
         result.push({ id, dataSourceKey: sel.dataSourceKey, type: sel.type, label, value });
       }
     }
+
+    // Visualization brush/click selections (gated to active vizzes).
+    for (const brush of brushFilters) {
+      const fields = formatSelectionFields(brush.selection);
+      for (const { label, value } of fields) {
+        result.push({
+          id: brush.uuid,
+          dataSourceKey: brush.selection.dataSourceKey,
+          type: brush.selection.type,
+          label,
+          value,
+          brushUuid: brush.uuid,
+        });
+      }
+    }
     return result;
-  }, [dataSelections, internalDataSelections, dataPackageStore]);
+  }, [dataSelections, internalDataSelections, dataPackageStore, brushFilters]);
 
   if (chips.length === 0) {
     return (
@@ -109,7 +146,7 @@ export function FilterToolbar() {
                   variant="ghost"
                   size="icon"
                   className="absolute -top-1.5 -right-1.5 z-10 h-4 w-4 rounded-full border bg-background shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => clearFilter(chip.id)}
+                  onClick={() => clearChip(chip)}
                 />
               }
             >
