@@ -14,4 +14,5 @@ export { joinDataPath } from './utils/joinDataPath';
 export {
   evaluateStructuredText,
   hasStructuredReferences,
+  type StructuredTextSegment,
 } from './utils/structuredTextParser';

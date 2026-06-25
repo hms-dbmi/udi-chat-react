@@ -1,7 +1,13 @@
 import type { Message } from '@/types/messages';
 import { ToolCallRenderer } from '@/features/tool-calls';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { useDashboard } from '@/app/UDIChatContext';
+import { MarkdownText } from '@/components/MarkdownText';
 import { cn } from '@/lib/utils';
 
 interface MessageBubbleProps {
@@ -19,27 +25,27 @@ const TOOL_CALL_LABELS: Record<string, string> = {
 };
 
 export function MessageBubble({ message, messageIndex, onSelectSuggestion }: MessageBubbleProps) {
-  const pinKey = useDashboard((s) => s.pinKey);
-  const isPinned = useDashboard((s) => s.isPinned);
+  const vizKey = useDashboard((s) => s.vizKey);
+  const isActive = useDashboard((s) => s.isActive);
   const isUser = message.role === 'user';
   const toolCalls = message.tool_calls ?? [];
 
   return (
-    <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
+    <div data-message className={cn('flex scroll-mt-6', isUser ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
-          'max-w-[85%] rounded-lg px-3 py-2',
+          'max-w-[85%] min-w-0 rounded-lg px-3 py-2 wrap-break-word',
           isUser ? 'bg-primary text-primary-foreground' : 'bg-muted',
         )}
       >
         {/* Message text */}
-        {message.content && <p className="text-sm whitespace-pre-wrap">{message.content}</p>}
+        {message.content && <MarkdownText>{message.content}</MarkdownText>}
 
         {/* Tool calls */}
         {toolCalls.length === 1 && (
           <ToolCallRenderer
             toolCall={toolCalls[0].function}
-            isPinned={isPinned(pinKey(messageIndex, 0))}
+            isActive={isActive(vizKey(messageIndex, 0))}
             onSelectSuggestion={onSelectSuggestion}
             message={message}
             messageIndex={messageIndex}
@@ -48,27 +54,25 @@ export function MessageBubble({ message, messageIndex, onSelectSuggestion }: Mes
         )}
 
         {toolCalls.length > 1 && (
-          <Tabs defaultValue="0" className="mt-1">
-            <TabsList className="h-7">
-              {toolCalls.map((tc, i) => (
-                <TabsTrigger key={i} value={String(i)} className="text-xs px-2 py-0.5">
-                  {TOOL_CALL_LABELS[tc.function.name] ?? tc.function.name}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+          <Accordion defaultValue={[0]} className="mt-1 min-w-64">
             {toolCalls.map((tc, i) => (
-              <TabsContent key={i} value={String(i)}>
-                <ToolCallRenderer
-                  toolCall={tc.function}
-                  isPinned={isPinned(pinKey(messageIndex, i))}
-                  onSelectSuggestion={onSelectSuggestion}
-                  message={message}
-                  messageIndex={messageIndex}
-                  toolCallIndex={i}
-                />
-              </TabsContent>
+              <AccordionItem key={i} value={i}>
+                <AccordionTrigger className="text-xs">
+                  {TOOL_CALL_LABELS[tc.function.name] ?? tc.function.name}
+                </AccordionTrigger>
+                <AccordionContent>
+                  <ToolCallRenderer
+                    toolCall={tc.function}
+                    isActive={isActive(vizKey(messageIndex, i))}
+                    onSelectSuggestion={onSelectSuggestion}
+                    message={message}
+                    messageIndex={messageIndex}
+                    toolCallIndex={i}
+                  />
+                </AccordionContent>
+              </AccordionItem>
             ))}
-          </Tabs>
+          </Accordion>
         )}
       </div>
     </div>

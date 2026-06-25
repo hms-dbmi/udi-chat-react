@@ -1,6 +1,7 @@
 import { useState, useCallback, type KeyboardEvent } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Send } from 'lucide-react';
 
 interface ChatInputProps {
@@ -36,18 +37,24 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
         onChange={(e) => setText(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder ?? 'Ask a question...'}
-        disabled={disabled}
         className="min-h-[40px] max-h-[120px] resize-none"
         rows={1}
       />
-      <Button
-        onClick={handleSend}
-        disabled={disabled || !text.trim()}
-        size="icon"
-        className="shrink-0 self-end"
-      >
-        <Send className="h-4 w-4" />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              onClick={handleSend}
+              disabled={disabled || !text.trim()}
+              size="icon"
+              className="shrink-0 self-end"
+            />
+          }
+        >
+          <Send className="h-4 w-4" />
+        </TooltipTrigger>
+        <TooltipContent>Send message</TooltipContent>
+      </Tooltip>
     </div>
   );
 }

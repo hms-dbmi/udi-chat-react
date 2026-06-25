@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
-import { Users, FlaskConical, Table2, Loader2, AlertCircle } from 'lucide-react';
+import { Users, FlaskConical, Table2, AlertCircle } from 'lucide-react';
 import { queryData } from 'udi-toolkit/react';
 import type { QueryDataSpec } from 'udi-toolkit/react';
 import {
@@ -8,11 +8,13 @@ import {
   useDataFilters,
   useDataFiltersStore,
   useDataPackageStore,
+  useEntityIcons,
   useSelections,
 } from '@/app/UDIChatContext';
 import { joinDataPath } from '@/features/data-package';
+import type { EntityIconMap } from '../types';
 
-const ENTITY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+const DEFAULT_ENTITY_ICONS: EntityIconMap = {
   donors: Users,
   donor: Users,
   subject: Users,
@@ -39,11 +41,17 @@ export function DataCounts() {
   const loadError = useDataPackage((s) => s.error);
   const dataSelections = useDataFilters((s) => s.dataSelections);
   const vizSelections = useSelections((s) => s.selections);
-  const pinnedVisualizations = useDashboard((s) => s.pinnedVisualizations);
+  const activeVisualizations = useDashboard((s) => s.activeVisualizations);
   const dataFiltersStore = useDataFiltersStore();
   const dataPackageStore = useDataPackageStore();
 
   const [filteredCounts, setFilteredCounts] = useState<Record<string, number>>({});
+
+  const consumerIcons = useEntityIcons();
+  const mergedIcons = useMemo<EntityIconMap>(
+    () => ({ ...DEFAULT_ENTITY_ICONS, ...consumerIcons }),
+    [consumerIcons],
+  );
 
   const chips = useMemo<EntityChip[]>(() => {
     if (!dataPackage?.resources) return [];
@@ -56,15 +64,15 @@ export function DataCounts() {
           id: name,
           label: name,
           totalCount,
-          Icon: ENTITY_ICONS[name] ?? Table2,
+          Icon: mergedIcons[name] ?? Table2,
         };
       })
       .filter((c): c is NonNullable<typeof c> => c !== null);
-  }, [dataPackage, entityNames]);
+  }, [dataPackage, entityNames, mergedIcons]);
 
   // Build filter IDs (same logic as dashboardStore.getFilterIds)
   const filterIds = useMemo(() => {
-    const vizIds = Array.from(pinnedVisualizations.values()).map((v) => v.uuid);
+    const vizIds = Array.from(activeVisualizations.values()).map((v) => v.uuid);
     const dpState = dataPackageStore.getState();
     const validSelections = dataFiltersStore.getState().getValidDataSelections({
       isValidIntervalFilter: dpState.isValidIntervalFilter,
@@ -72,7 +80,7 @@ export function DataCounts() {
     });
     const externalIds = Object.keys(validSelections);
     return Array.from(new Set([...vizIds, ...externalIds])).sort();
-  }, [pinnedVisualizations, dataSelections, dataFiltersStore, dataPackageStore]);
+  }, [activeVisualizations, dataSelections, dataFiltersStore, dataPackageStore]);
 
   // Build a count spec per entity (with named filters + rollup)
   const countSpecs = useMemo(() => {
@@ -80,7 +88,7 @@ export function DataCounts() {
     const dashState = {
       getNamedFilters: (ids: string[], source: string) => {
         const uuidToSource = new Map<string, string>();
-        for (const v of pinnedVisualizations.values()) {
+        for (const v of activeVisualizations.values()) {
           const src = v.interactiveSpec.source as { name?: string } | Array<{ name?: string }>;
           const sn = Array.isArray(src) ? src[0]?.name : src?.name;
           if (v.uuid && sn) uuidToSource.set(v.uuid, sn);
@@ -122,7 +130,7 @@ export function DataCounts() {
       };
     }
     return specs;
-  }, [chips, filterIds, dataPackage, pinnedVisualizations, dataFiltersStore, dataPackageStore]);
+  }, [chips, filterIds, dataPackage, activeVisualizations, dataFiltersStore, dataPackageStore]);
 
   // Build a filtered-data spec per entity (same filters, no rollup) for download export
   const exportSpecs = useMemo(() => {
@@ -317,12 +325,6 @@ export function DataCounts() {
           </div>
         );
       })}
-      {!domainsReady && (
-        <div className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          <span>Loading fields...</span>
-        </div>
-      )}
     </div>
   );
 }

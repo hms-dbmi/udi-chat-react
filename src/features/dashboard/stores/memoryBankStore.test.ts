@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { createMemoryBankStore } from './memoryBankStore';
-import type { PinnedVisualization } from './dashboardStore';
+import type { ActiveVisualization } from './dashboardStore';
 import type { UDIGrammar } from 'udi-toolkit/react';
 
-function makeViz(uuid: string, overrides: Partial<PinnedVisualization> = {}): PinnedVisualization {
+function makeViz(uuid: string, overrides: Partial<ActiveVisualization> = {}): ActiveVisualization {
   const spec = { source: { name: 'donors', source: 'donors.csv' } } as unknown as UDIGrammar;
   return {
     index: 0,
@@ -22,7 +22,7 @@ describe('memoryBankStore', () => {
     expect(store.getState().closedVisualizations.size).toBe(0);
   });
 
-  it('addToMemoryBank inserts a viz keyed by the pin key', () => {
+  it('addToMemoryBank inserts a viz keyed by the viz key', () => {
     const store = createMemoryBankStore();
     const viz = makeViz('u1');
     store.getState().addToMemoryBank('0-0', viz);
