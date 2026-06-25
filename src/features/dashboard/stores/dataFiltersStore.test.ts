@@ -187,6 +187,25 @@ describe('dataFiltersStore', () => {
     expect(store.getState().dataSelections['message-filter-0-0'].selection!.age).toEqual([5, 20]);
   });
 
+  it('setDataSelection is a no-op when the value is unchanged', () => {
+    const store = createDataFiltersStore();
+    store.getState().setDataSelection('viz-brush-abc', {
+      dataSourceKey: 'donors',
+      type: 'interval',
+      selection: { age: [0, 10] },
+    });
+    const before = store.getState().dataSelections;
+    // An identical re-emit (same value, fresh object) must not churn the
+    // dataSelections reference — that reference change is what cascades into
+    // a re-render loop through DashboardPanel/Vega.
+    store.getState().setDataSelection('viz-brush-abc', {
+      dataSourceKey: 'donors',
+      type: 'interval',
+      selection: { age: [0, 10] },
+    });
+    expect(store.getState().dataSelections).toBe(before);
+  });
+
   it('updateInternalDataSelections skips keys prefixed with message-filter-', () => {
     const store = createDataFiltersStore();
     store.getState().updateInternalDataSelections({
