@@ -19,6 +19,13 @@ interface IntervalFilterComponentProps {
   fieldIndex: number;
   tweakable: boolean;
   filterKey: string;
+  /**
+   * Optional override for where an edit is written. Defaults to
+   * `dataFiltersStore.setDataSelection(filterKey, …)` (the LLM-filter path).
+   * Brush-originated filters pass a writer that targets `selectionsStore`
+   * instead, so the same widget can drive a visualization brush.
+   */
+  onCommit?: (selection: DataSelection) => void;
 }
 
 function formatNumber(n: number): string {
@@ -30,6 +37,7 @@ export function IntervalFilterComponent({
   fieldIndex,
   tweakable,
   filterKey,
+  onCommit,
 }: IntervalFilterComponentProps) {
   const entityNames = useDataPackage((s) => s.entityNames);
   const quantitativeSourceFields = useDataPackage((s) => s.quantitativeSourceFields);
@@ -75,6 +83,14 @@ export function IntervalFilterComponent({
     };
   }, []);
 
+  const commit = useCallback(
+    (selection: DataSelection) => {
+      if (onCommit) onCommit(selection);
+      else setDataSelection(filterKey, selection);
+    },
+    [onCommit, setDataSelection, filterKey],
+  );
+
   const commitToStore = useCallback(
     (range: number[]) => {
       const current = (dataSelection.selection ?? {}) as RangeSelection;
@@ -82,9 +98,9 @@ export function IntervalFilterComponent({
         ...current,
         [field]: [range[0], range[1]],
       };
-      setDataSelection(filterKey, { ...dataSelection, selection: nextSelection });
+      commit({ ...dataSelection, selection: nextSelection });
     },
-    [setDataSelection, filterKey, dataSelection, field],
+    [commit, dataSelection, field],
   );
 
   const scheduleCommit = useCallback(
@@ -148,7 +164,7 @@ export function IntervalFilterComponent({
   const handleEntityChange = useCallback(
     (val: string | null) => {
       if (!val) return;
-      setDataSelection(filterKey, {
+      commit({
         ...dataSelection,
         dataSourceKey: val,
         selection: { [field]: [rangeMinMax.min, rangeMinMax.max] },
@@ -159,7 +175,7 @@ export function IntervalFilterComponent({
         field,
       });
     },
-    [setDataSelection, filterKey, dataSelection, field, rangeMinMax, trackEvent],
+    [commit, dataSelection, field, rangeMinMax, trackEvent],
   );
 
   const handleFieldChange = useCallback(
@@ -172,7 +188,7 @@ export function IntervalFilterComponent({
         newDomain?.type === 'interval'
           ? (newDomain.domain as { min: number; max: number }).max
           : 100;
-      setDataSelection(filterKey, {
+      commit({
         ...dataSelection,
         selection: { [val]: [min, max] },
       });
@@ -182,7 +198,7 @@ export function IntervalFilterComponent({
         field: val,
       });
     },
-    [setDataSelection, filterKey, dataSelection, getDomainForField, entity, trackEvent],
+    [commit, dataSelection, getDomainForField, entity, trackEvent],
   );
 
   const fieldOptions = quantitativeSourceFields?.[entity] ?? [];
