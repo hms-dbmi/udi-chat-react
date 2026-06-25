@@ -146,12 +146,16 @@ function UDIChatInner({
     const updates: Record<string, unknown> = {};
     for (const [key, sel] of Object.entries(dataSelections)) {
       if (!key.startsWith('viz-brush-')) continue;
+      const uuid = key.slice('viz-brush-'.length);
       const hasNonEmpty = Object.values(sel.selection ?? {}).some(
         (v) => Array.isArray(v) && v.length > 0,
       );
-      if (!hasNonEmpty) continue;
-      const uuid = key.slice('viz-brush-'.length);
-      updates[uuid] = sel;
+      // Mirror live selections as-is; mirror an emptied one (every value
+      // unchecked in a categorical filter, or a cleared range) as an explicit
+      // null so updateSelections removes the cross-chart filter instead of
+      // leaving the stale selection applied. Without this, clearing a brush
+      // widget in the chat appears to do nothing.
+      updates[uuid] = hasNonEmpty ? sel : { ...sel, selection: null };
     }
     if (Object.keys(updates).length === 0) return;
     // Cast through unknown — local DataSelection's `selection` is
