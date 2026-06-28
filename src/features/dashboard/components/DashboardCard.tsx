@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { UDIVis } from 'udi-toolkit/react';
-import type { DataSelections } from 'udi-toolkit/react';
+import type { DataSelections, DataSelection } from 'udi-toolkit/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { X, Settings2, Code2, Copy, Check, Table2, BarChart3, ExternalLink } from 'lucide-react';
@@ -20,6 +20,7 @@ import {
   useSelectionsStore,
   useMemoryBankStore,
   useDataPackage,
+  useDataFiltersStore,
   useGlobal,
   useTracker,
 } from '@/app/UDIChatContext';
@@ -35,6 +36,7 @@ interface DashboardCardProps {
 export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
   const dashboardStore = useDashboardStore();
   const selectionsStore = useSelectionsStore();
+  const dataFiltersStore = useDataFiltersStore();
   const memoryBankStore = useMemoryBankStore();
   const sourceResolver = useDataPackage((s) => s.sourceResolver);
   const trackEvent = useTracker();
@@ -65,6 +67,21 @@ export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
     return JSON.parse(JSON.stringify(filtered)) as DataSelections;
   }, [selections, viz.uuid]);
 
+  // Track whether this viz currently owns a brush so we can detect a
+  // clear-transition (own selection going from present → absent) and
+  // bump a remount counter. Vega manages its own brush rectangle
+  // internally, so when the FilterToolbar X-button clears
+  // selectionsStore[viz.uuid] there's no native way to ask the chart
+  // to drop the rectangle. Forcing UDIVis to remount via a key change
+  // is the simplest reliable reset.
+  const ownHasBrush = selections[viz.uuid] != null;
+  const [trackedHasBrush, setTrackedHasBrush] = useState(false);
+  const [brushClearedCount, setBrushClearedCount] = useState(0);
+  if (ownHasBrush !== trackedHasBrush) {
+    setTrackedHasBrush(ownHasBrush);
+    if (!ownHasBrush) setBrushClearedCount((c) => c + 1);
+  }
+
   const handleClose = useCallback(() => {
     dashboardStore.getState().closeVisualization(vizKey, memoryBankStore);
     trackEvent('visualization_closed', { hasTitle: !!viz.title });
@@ -73,14 +90,24 @@ export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
   const handleSelectionChange = useCallback(
     (newSelections: DataSelections) => {
       const plain = JSON.parse(JSON.stringify(newSelections)) as DataSelections;
-      // Brushes propagate through selectionsStore only. We intentionally do
-      // NOT write them into dataFiltersStore.internalDataSelections anymore,
-      // so brushes don't appear as filter chips in the toolbar. Cross-chart
-      // filtering still works via the shared Pinia DataSourcesStore +
-      // named-filter entries in each viz's interactiveSpec.transformation.
       selectionsStore.getState().updateSelections(plain);
+      // Mirror this viz's brush into dataFiltersStore.dataSelections under a
+      // `viz-brush-` key so it surfaces as a FilterToolbar chip AND drives a
+      // user-side FilterComponent widget in the chat (the synthetic message
+      // is generated from this entry by MessageList). Cross-chart filtering
+      // still flows through the Pinia DataSourcesStore + named-filter
+      // entries in each viz's interactiveSpec.transformation; this mirror
+      // is the display-and-adjust copy.
+      const own = plain[viz.uuid];
+      const brushKey = `viz-brush-${viz.uuid}`;
+      // `own` is already a correctly-typed DataSelection; mirror it as-is when
+      // it carries a brush, otherwise store an empty placeholder (a null
+      // selection reads as "no filter" in both the toolbar and chat widget).
+      const mirrorValue: DataSelection =
+        own && own.selection ? own : { dataSourceKey: '', type: 'interval', selection: null };
+      dataFiltersStore.getState().setDataSelection(brushKey, mirrorValue);
     },
-    [selectionsStore],
+    [selectionsStore, dataFiltersStore, viz.uuid],
   );
 
   const [showTweak, setShowTweak] = useState(false);
@@ -241,7 +268,7 @@ export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
       <CardContent className="p-2">
         <UDIVis
           className="block w-full"
-          key={isTableView ? `table-${specKey}` : specKey}
+          key={`${isTableView ? `table-${specKey}` : specKey}-c${brushClearedCount}`}
           spec={isTableView ? tableSpec : plainSpec}
           selections={externalSelections}
           sourceResolver={sourceResolver}

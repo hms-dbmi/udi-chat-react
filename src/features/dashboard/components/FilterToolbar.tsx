@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { useDataFilters, useDataPackageStore } from '@/app/UDIChatContext';
+import { useDataFilters, useDataPackageStore, useSelectionsStore } from '@/app/UDIChatContext';
 import type { DataSelection } from '@/features/dashboard';
 
 interface ChipInfo {
@@ -38,11 +38,26 @@ function formatSelectionFields(sel: DataSelection): { label: string; value: stri
   return results;
 }
 
+const BRUSH_KEY_PREFIX = 'viz-brush-';
+
 export function FilterToolbar() {
   const dataPackageStore = useDataPackageStore();
+  const selectionsStore = useSelectionsStore();
   const dataSelections = useDataFilters((s) => s.dataSelections);
   const internalDataSelections = useDataFilters((s) => s.internalDataSelections);
   const clearFilter = useDataFilters((s) => s.clearFilter);
+
+  const handleClearChip = (chipId: string) => {
+    // Brush chips are mirrored from selectionsStore; the chart's visible
+    // brush is authoritative, so clear it there too. Setting selection to
+    // null makes selectionsStore remove the entry.
+    if (chipId.startsWith(BRUSH_KEY_PREFIX)) {
+      const uuid = chipId.slice(BRUSH_KEY_PREFIX.length);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      selectionsStore.getState().updateSelections({ [uuid]: { selection: null } as any });
+    }
+    clearFilter(chipId);
+  };
 
   const chips = useMemo<ChipInfo[]>(() => {
     const validate = {
@@ -54,7 +69,9 @@ export function FilterToolbar() {
       if (!sel.selection || Object.keys(sel.selection).length === 0) return false;
       if (Object.values(sel.selection).every((v) => Array.isArray(v) && v.length === 0))
         return false;
-      if (!key.startsWith('message-filter-')) return false;
+      // Both LLM-originated `message-filter-*` entries and viz-brush mirrors
+      // surface here; everything else (other internal filters) is excluded.
+      if (!key.startsWith('message-filter-') && !key.startsWith(BRUSH_KEY_PREFIX)) return false;
       if (sel.type === 'interval') {
         return (
           validate.isValidIntervalFilter(sel.dataSourceKey, Object.keys(sel.selection)[0])
@@ -109,7 +126,7 @@ export function FilterToolbar() {
                   variant="ghost"
                   size="icon"
                   className="absolute -top-1.5 -right-1.5 z-10 h-4 w-4 rounded-full border bg-background shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => clearFilter(chip.id)}
+                  onClick={() => handleClearChip(chip.id)}
                 />
               }
             >

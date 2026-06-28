@@ -15,6 +15,7 @@ import {
   useDataFiltersStore,
   useDataFilters,
   useMemoryBankStore,
+  useSelectionsStore,
   useGlobal,
   useTracker,
 } from '@/app/UDIChatContext';
@@ -47,6 +48,7 @@ function UDIChatInner({
   const dashboardStore = useDashboardStore();
   const dataFiltersStore = useDataFiltersStore();
   const memoryBankStore = useMemoryBankStore();
+  const selectionsStore = useSelectionsStore();
   const debugMode = useGlobal((s) => s.debugMode);
   const messages = useConversation((s) => s.messages);
   const sourceFields = useDataPackage((s) => s.sourceFields);
@@ -132,6 +134,36 @@ function UDIChatInner({
   useEffect(() => {
     dashboardStore.getState().updateSpecFilters(dataFiltersStore, dataPackageStore);
   }, [dataSelections, activeVisualizations, dashboardStore, dataFiltersStore, dataPackageStore]);
+
+  // Mirror viz-brush entries from dataFiltersStore.dataSelections back into
+  // selectionsStore. Brushes start in selectionsStore (Vega → DashboardCard
+  // onSelectionChange), but the chat-side FilterComponent writes to
+  // dataSelections via setDataSelection, so chat-side adjustments need to
+  // round-trip back through selectionsStore for cross-chart filtering to
+  // pick them up. updateSelections does its own JSON-equality check, so the
+  // common case (the brush is already in sync) is a no-op.
+  useEffect(() => {
+    const updates: Record<string, unknown> = {};
+    for (const [key, sel] of Object.entries(dataSelections)) {
+      if (!key.startsWith('viz-brush-')) continue;
+      const uuid = key.slice('viz-brush-'.length);
+      const hasNonEmpty = Object.values(sel.selection ?? {}).some(
+        (v) => Array.isArray(v) && v.length > 0,
+      );
+      // Mirror live selections as-is; mirror an emptied one (every value
+      // unchecked in a categorical filter, or a cleared range) as an explicit
+      // null so updateSelections removes the cross-chart filter instead of
+      // leaving the stale selection applied. Without this, clearing a brush
+      // widget in the chat appears to do nothing.
+      updates[uuid] = hasNonEmpty ? sel : { ...sel, selection: null };
+    }
+    if (Object.keys(updates).length === 0) return;
+    // Cast through unknown — local DataSelection's `selection` is
+    // Record<string, unknown[]>, but the udi-toolkit DataSelections shape
+    // is narrower. updateSelections only reads the values structurally.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    selectionsStore.getState().updateSelections(updates as any);
+  }, [dataSelections, selectionsStore]);
 
   const queryConfig: QueryConfig = {
     apiBaseUrl,

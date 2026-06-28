@@ -16,6 +16,7 @@ export {
 export {
   createDataFiltersStore,
   extractFilterSpecFromMessage,
+  generateFilterMessage,
   messageFilterKeyWithToolCall,
   messageFilterKey,
   type DataFiltersState,

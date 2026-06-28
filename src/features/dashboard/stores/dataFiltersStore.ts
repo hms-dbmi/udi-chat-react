@@ -296,6 +296,14 @@ export function createDataFiltersStore() {
     },
 
     setDataSelection: (key: string, selection: DataSelection) => {
+      // Skip writes that don't change the value. Vega re-emits a viz's brush
+      // selection on every data update (e.g. when another chart's filter
+      // changes its rows), and DashboardCard mirrors each emit here. Without
+      // this guard those identical re-emits churn the dataSelections
+      // reference, re-rendering every dashboard card, which makes Vega
+      // re-emit again — a feedback loop that locks up the page.
+      const current = get().dataSelections[key];
+      if (current && JSON.stringify(current) === JSON.stringify(selection)) return;
       set((state) => ({
         dataSelections: { ...state.dataSelections, [key]: selection },
       }));
