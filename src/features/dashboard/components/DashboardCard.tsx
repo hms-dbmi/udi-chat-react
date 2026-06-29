@@ -57,13 +57,17 @@ export function DashboardCard({ vizKey, viz, selections }: DashboardCardProps) {
     return `${src}|${repr}`;
   }, [viz.interactiveSpec]);
 
-  const externalSelections = useMemo(() => {
-    const filtered: DataSelections = {};
-    for (const [key, val] of Object.entries(selections)) {
-      if (key !== viz.uuid) filtered[key] = val;
-    }
-    return JSON.parse(JSON.stringify(filtered)) as DataSelections;
-  }, [selections, viz.uuid]);
+  // Pass the full selection set — including this viz's OWN brush (keyed by its
+  // uuid) — back to UDIVis. Feeding the own selection back lets an edit made
+  // elsewhere (the chat adjustment widget or a slider) drive this chart's
+  // rendered brush rectangle, and makes UDIVis bind the value into the shared
+  // DataSourcesStore so entity counts update even when this is the only
+  // visualization on the dashboard. UDIVis treats an external selection equal
+  // to its current one as a no-op, so live brushing doesn't loop.
+  const externalSelections = useMemo(
+    () => JSON.parse(JSON.stringify(selections)) as DataSelections,
+    [selections],
+  );
 
   const handleClose = useCallback(() => {
     dashboardStore.getState().closeVisualization(vizKey, memoryBankStore);
