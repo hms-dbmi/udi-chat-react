@@ -59,9 +59,10 @@ function BrushFilterWidget({ brush }: { brush: BrushFilter }) {
 
 /**
  * Renders an adjustment widget in the chat for each active visualization brush
- * filter, mirroring how LLM-originated `FilterData` filters render. Brush
- * selections live in `selectionsStore` (not the conversation), so these never
- * leak into the LLM message history.
+ * filter. Each one is presented in the same message bubble as an
+ * LLM-originated `FilterData` filter (see MessageBubble), so a brush filter
+ * reads as a chat message. Brush selections live in `selectionsStore` (not the
+ * conversation), so these never leak into the LLM message history.
  */
 export function BrushFilterWidgets() {
   const brushFilters = useBrushFilters();
@@ -69,18 +70,14 @@ export function BrushFilterWidgets() {
   if (brushFilters.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-2">
-      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-1">
-        Visualization filters
-      </span>
+    <>
       {brushFilters.map((brush) => (
-        <div key={brush.uuid} className="rounded-lg border bg-muted/40">
-          <div className="px-2 pt-2 text-xs font-medium truncate" title={brush.title}>
-            {brush.title}
+        <div key={brush.uuid} data-message className="flex scroll-mt-6 justify-start">
+          <div className="max-w-[85%] min-w-0 rounded-lg bg-muted px-3 py-2 wrap-break-word">
+            <BrushFilterWidget brush={brush} />
           </div>
-          <BrushFilterWidget brush={brush} />
         </div>
       ))}
-    </div>
+    </>
   );
 }
