@@ -207,6 +207,13 @@ export function IntervalFilterComponent({
   const minText = localRange[0] <= rangeMinMax.min ? 'min' : formatNumber(localRange[0]);
   const maxText = localRange[1] >= rangeMinMax.max ? 'max' : formatNumber(localRange[1]);
 
+  // A brush from a visualization can report a range slightly outside the data
+  // extent (charts often pad the axis with a visual buffer). Clamp only the
+  // slider thumb positions to the track so they never overshoot the line; the
+  // stored range value is left untouched.
+  const clampInRange = (v: number) => Math.min(Math.max(v, rangeMinMax.min), rangeMinMax.max);
+  const thumbRange = [clampInRange(localRange[0]), clampInRange(localRange[1])];
+
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1.5 text-sm">
@@ -261,7 +268,7 @@ export function IntervalFilterComponent({
       </div>
       {isValid ? (
         <Slider
-          value={localRange}
+          value={thumbRange}
           min={rangeMinMax.min}
           max={rangeMinMax.max}
           step={(rangeMinMax.max - rangeMinMax.min) / 100}
