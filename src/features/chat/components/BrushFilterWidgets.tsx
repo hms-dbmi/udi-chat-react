@@ -3,24 +3,15 @@ import { IntervalFilterComponent, PointFilterComponent } from '@/features/tool-c
 import { useBrushFilters, type BrushFilter, type DataSelection } from '@/features/dashboard';
 import { useSelectionsStore } from '@/app/UDIChatContext';
 
-function selectionIsEmpty(selection: DataSelection): boolean {
-  const sel = selection.selection;
-  if (sel == null) return true;
-  const values = Object.values(sel);
-  if (values.length === 0) return true;
-  return values.every((v) => v == null || (Array.isArray(v) && v.length === 0));
-}
-
 function BrushFilterWidget({ brush }: { brush: BrushFilter }) {
   const selectionsStore = useSelectionsStore();
 
   const handleCommit = useCallback(
     (next: DataSelection) => {
-      // An emptied selection (e.g. all categorical values unchecked) fully
-      // clears the brush so the source viz remounts and its chip disappears,
-      // matching the toolbar's clear behavior.
-      const payload = selectionIsEmpty(next) ? { ...next, selection: null } : next;
-      selectionsStore.getState().updateSelections({ [brush.uuid]: payload });
+      // Keep the (possibly empty) selection rather than deleting it, so a point
+      // brush with every value unchecked persists its widget for re-selection.
+      // The brush is fully removed only via the toolbar chip's clear action.
+      selectionsStore.getState().updateSelections({ [brush.uuid]: next });
     },
     [selectionsStore, brush.uuid],
   );

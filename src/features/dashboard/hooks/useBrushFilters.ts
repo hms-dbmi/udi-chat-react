@@ -14,7 +14,13 @@ export interface BrushFilter {
   selection: DataSelection;
 }
 
-function hasActiveSelection(selection: DataSelection): boolean {
+/**
+ * Whether a brush selection currently constrains anything. An interval brush
+ * always has a range; a point brush with every value unchecked is "present but
+ * empty" — its widget should persist for re-selection, but it shouldn't render
+ * a (valueless) toolbar chip.
+ */
+export function brushHasValue(selection: DataSelection): boolean {
   const sel = selection.selection;
   if (sel == null) return false;
   const values = Object.values(sel);
@@ -25,7 +31,10 @@ function hasActiveSelection(selection: DataSelection): boolean {
 /**
  * Pure derivation of brush filters from raw selections + active visualizations.
  * Gated to currently-active vizzes (so a closed viz's stale selection never
- * shows) and to non-empty selections. Exported for unit testing.
+ * shows) and to a present (non-null) selection. A point brush whose values are
+ * all unchecked is kept so its chat widget persists; callers that only want
+ * value-carrying filters (e.g. the toolbar) filter with `brushHasValue`.
+ * Exported for unit testing.
  */
 export function selectBrushFilters(
   selections: DataSelections,
@@ -40,7 +49,7 @@ export function selectBrushFilters(
   for (const [uuid, selection] of Object.entries(selections)) {
     const meta = byUuid.get(uuid);
     if (!meta) continue;
-    if (!hasActiveSelection(selection)) continue;
+    if (selection.selection == null) continue;
     result.push({ uuid, vizKey: meta.vizKey, title: meta.title, selection });
   }
   return result;

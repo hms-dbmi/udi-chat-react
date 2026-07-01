@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useDataFilters, useDataPackageStore, useSelectionsStore } from '@/app/UDIChatContext';
-import { useBrushFilters } from '@/features/dashboard';
+import { useBrushFilters, brushHasValue } from '@/features/dashboard';
 import type { DataSelection } from '@/features/dashboard';
 
 interface ChipInfo {
@@ -110,8 +110,10 @@ export function FilterToolbar() {
       }
     }
 
-    // Visualization brush/click selections (gated to active vizzes).
+    // Visualization brush/click selections (gated to active vizzes). A
+    // present-but-empty point brush keeps its chat widget but has no chip.
     for (const brush of brushFilters) {
+      if (!brushHasValue(brush.selection)) continue;
       const fields = formatSelectionFields(brush.selection);
       for (const { label, value } of fields) {
         result.push({

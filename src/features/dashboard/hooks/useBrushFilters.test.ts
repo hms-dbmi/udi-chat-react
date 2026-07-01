@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { DataSelections } from 'udi-toolkit/react';
-import { selectBrushFilters } from './useBrushFilters';
+import { selectBrushFilters, brushHasValue } from './useBrushFilters';
 import type { ActiveVisualization } from '../stores/dashboardStore';
 
 function viz(uuid: string, overrides: Partial<ActiveVisualization> = {}): ActiveVisualization {
@@ -39,13 +39,15 @@ describe('selectBrushFilters', () => {
     expect(selectBrushFilters(selections, active)).toEqual([]);
   });
 
-  it('ignores empty selections', () => {
+  it('keeps present-but-empty point selections so their widget persists', () => {
     const active = new Map([['viz-key-1', viz('uuid-1')]]);
     const selections: DataSelections = {
       'uuid-1': { dataSourceKey: 'donors', type: 'point', selection: { sex: [] } },
     };
 
-    expect(selectBrushFilters(selections, active)).toEqual([]);
+    const result = selectBrushFilters(selections, active);
+    expect(result).toHaveLength(1);
+    expect(brushHasValue(result[0].selection)).toBe(false);
   });
 
   it('ignores null selections', () => {
@@ -64,5 +66,29 @@ describe('selectBrushFilters', () => {
     const selections: DataSelections = { 'uuid-1': intervalSel('donors') };
 
     expect(selectBrushFilters(selections, active)[0].title).toBe('show ages');
+  });
+});
+
+describe('brushHasValue', () => {
+  it('is true for an interval brush', () => {
+    expect(
+      brushHasValue({ dataSourceKey: 'd', type: 'interval', selection: { age: [10, 90] } }),
+    ).toBe(true);
+  });
+
+  it('is true for a point brush with selected values', () => {
+    expect(brushHasValue({ dataSourceKey: 'd', type: 'point', selection: { sex: ['M'] } })).toBe(
+      true,
+    );
+  });
+
+  it('is false for an empty point brush', () => {
+    expect(brushHasValue({ dataSourceKey: 'd', type: 'point', selection: { sex: [] } })).toBe(
+      false,
+    );
+  });
+
+  it('is false for a null selection', () => {
+    expect(brushHasValue({ dataSourceKey: 'd', type: 'interval', selection: null })).toBe(false);
   });
 });
