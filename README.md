@@ -1,3 +1,9 @@
+> [!warning]
+> ## 🚚 This repository has moved!
+> Development now happens in **[udi-yac](https://github.com/hms-dbmi/udi-yac)** — specifically under [`packages/chat`](https://github.com/hms-dbmi/udi-yac/tree/main/packages/chat).
+>
+> This repo is archived and no longer maintained. Please open issues and PRs in the new location.
+
 # udi-yac
 
 React implementation of the UDI Chat interface — an AI-powered system for querying and visualizing biomedical datasets via natural language. This is a React port of the original Vue 3/Quasar `udi-chat` app. Published on npm as [`udi-yac`](https://www.npmjs.com/package/udi-yac); the repository directory remains `udi-chat-react`.
